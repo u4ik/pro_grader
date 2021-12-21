@@ -153,7 +153,7 @@ const parseUser = user => {
                 Options: { ...clientOrServerResponse, [Object.keys(logResultsRes)[0]]: logResultsRes[Object.keys(logResultsRes)[0]] }
             }
         }
-        console.log(optionsObj)
+
         // Save Options File 
         if (optionsObj) {
             fs.writeFileSync(`${__dirname}` + "/options.json", JSON.stringify(optionsObj));
@@ -180,7 +180,7 @@ const parseUser = user => {
 
                 let branchObj = {}
 
-                commitCommand = exec('git shortlog -sn < ' + tty, { cwd: `./ repos / ${parseUser(r)}` }, function (error, stdout, stderr) {
+                commitCommand = exec('git shortlog -sn < ' + tty, { cwd: `${__dirname}/repos/${parseUser(r)}` }, function (error, stdout, stderr) {
 
                 })
                 commitCommand.stdout.on("data", (data) => {
@@ -276,7 +276,11 @@ const parseUser = user => {
         console.log(green('√ ') + 'Results Saved As: results.json')
 
         grepCommand?.on("exit", function () {
+            if (optionsObj.Options.LogResults) {
 
+                console.dir(results, { depth: null, colors: true })
+
+            }
             fs.writeFileSync(`${__dirname}` + "/results.json", JSON.stringify(results));
         });
         commitCommand?.on("exit", function () {

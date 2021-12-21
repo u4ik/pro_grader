@@ -12,6 +12,7 @@
         "grade": "index.js"
     },
     "dependencies": {
+        "prettier": "^2.5.1",
         "prompts": "^2.4.2"
     }
 }
