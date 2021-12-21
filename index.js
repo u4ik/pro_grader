@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 const prompts = require('prompts');
 const { green } = require('kleur');
 const fs = require('fs');
