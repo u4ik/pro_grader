@@ -93,9 +93,10 @@ const parseUser = user => {
         let gitHubURLs, prevOptions, optionsObj, loadPrevConfig;
 
         // If options file exists
-        if (fs.existsSync(`./options.json`)) {
+        if (fs.existsSync(`${__dirname}` + '/options.json')) {
+
             try {
-                prevOptions = JSON.parse(fs.readFileSync('./options.json', 'utf-8'))
+                prevOptions = JSON.parse(fs.readFileSync(`${__dirname}` + '/options.json', 'utf-8'))
                 if (Object.keys(prevOptions.Options).length !== 0) {
                     console.log(prevOptions.Options)
                     loadPrevConfig = await (prompts(loadConfig))
@@ -109,7 +110,8 @@ const parseUser = user => {
         // Load Server/Client previous options or not
         if (loadPrevConfig?.LoadPrev) {
             optionsObj = prevOptions
-            if (fs.readdirSync('./repos').length !== 0 && prevOptions.Repos.length !== 0) {
+
+            if (prevOptions?.Repos?.length !== 0) {
 
                 loadPrevRepos = await (prompts(gitHubPrevURLQuestion))
 
@@ -141,27 +143,41 @@ const parseUser = user => {
 
         // Save Options File 
         if (optionsObj) {
-            fs.writeFileSync("./options.json", JSON.stringify(optionsObj));
+            fs.writeFileSync(`${__dirname}` + "/options.json", JSON.stringify(optionsObj));
             console.log(green('√ ') + "Options Saved As: options.json")
         }
 
         let results = {}
-        let grepCommand, cloneCommand, commitCommand, commitAmounts;
+        let grepCommand, cloneCommand, commitCommand;
 
         gitHubURLs.Repos.forEach((r) => {
 
             let { spawn, exec } = require('child_process')
 
 
-            cloneCommand = spawn('powershell.exe', [fs.existsSync(`./repos/${parseUser(r)}`) ? ` rm ./repos/${parseUser(r)} -Force -Recurse | git clone ${r} ./repos/${parseUser(r)}` : `git clone ${r} ./repos/${parseUser(r)}`]);
+            cloneCommand = spawn(
+                // fs.existsSync(`${__dirname}` + `/repos/${parseUser(r)}`)
+                "powershell.exe", [fs.existsSync(`${__dirname}/repos/${parseUser(r)}`)
+                    ?
+                    `rm ./repos/${parseUser(r)} -Force -Recurse | git clone ${r} ${__dirname}/repos/${parseUser(r)}`
+                    :
+                    `git clone ${r} ${__dirname}/repos/${parseUser(r)}`]
+            );
+            // cloneCommand = spawn('powershell.exe', [
+            //     // fs.existsSync(`${__dirname}` + `/repos/${parseUser(r)}`)
+            //     fs.existsSync(`./repos/${parseUser(r)}`)
+            //         ?
+            //         ` rm./ repos / ${parseUser(r)} - Force - Recurse | git clone ${r} ./ repos / ${parseUser(r)}`
+            //         :
+            //         `git clone ${r} ./ repos / ${parseUser(r)}`
+            // ]);
 
-            if (fs.existsSync(`./repos/${parseUser(r)}`)) {
-                var tty = process.platform === 'win32' ? 'CON' : '/dev/tty';
-
+            if (fs.existsSync(`${__dirname}` + `/repos/${parseUser(r)}`)) {
+                let tty = process.platform === 'win32' ? 'CON' : '/dev/tty';
 
                 let branchObj = {}
 
-                commitCommand = exec('git shortlog -sn < ' + tty, { cwd: `./repos/${parseUser(r)}` }, function (error, stdout, stderr) {
+                commitCommand = exec('git shortlog -sn < ' + tty, { cwd: `./ repos / ${parseUser(r)}` }, function (error, stdout, stderr) {
 
                 })
                 commitCommand.stdout.on("data", (data) => {
@@ -173,7 +189,7 @@ const parseUser = user => {
 
                 })
 
-                grepCommand = exec(`cd ./repos/${parseUser(r)} && git grep -r "router" ":!*.json" ":!*.md"`)
+                grepCommand = exec(`cd ${__dirname}/repos/${parseUser(r)} && git grep -r "router" ":!*.json" ":!*.md"`)
                 grepCommand.stdout.on("data", (data) => {
 
                     let endpoints = data.split('\n').filter(i => i[0] === 'c').filter(i => !i.includes('//')).filter(i => i.includes('router.'))
@@ -246,14 +262,19 @@ const parseUser = user => {
             commitCommand?.stderr.on("data", function (data) {
                 console.log("Status: " + data);
             });
+            cloneCommand?.on("exit", function () {
+                // console.log(`Repos Cloned Successfully`);
+            });
+            cloneCommand?.stderr.on("data", function (data) {
+                // console.log(`clone ${data}`);
+            });
+
         })
         console.log(green('√ ') + 'Results Saved As: results.json')
-        cloneCommand?.on("exit", function () {
-            // console.log(`Repos Cloned Successfully`);
-        });
 
         grepCommand?.on("exit", function () {
-            fs.writeFileSync("./results.json", JSON.stringify(results));
+
+            fs.writeFileSync(`${__dirname}` + "/results.json", JSON.stringify(results));
         });
         commitCommand?.on("exit", function () {
         });
