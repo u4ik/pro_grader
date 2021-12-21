@@ -1,14 +1,17 @@
 {
-  "name": "projectgrader",
-  "version": "1.0.0",
-  "description": "",
-  "main": "project_grader.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "author": "u4ik",
-  "license": "ISC",
-  "dependencies": {
-    "prompts": "^2.4.2"
-  }
+    "name": "projectgrader",
+    "version": "1.0.0",
+    "description": "A tool to log express endpoints",
+    "main": "index.js",
+    "scripts": {
+        "test": "echo \"Error: no test specified\" && exit 1"
+    },
+    "author": "u4ik",
+    "license": "ISC",
+    "bin": {
+        "grade": "index.js"
+    },
+    "dependencies": {
+        "prompts": "^2.4.2"
+    }
 }

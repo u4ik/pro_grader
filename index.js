@@ -9,7 +9,7 @@ const loadConfig = [
         message: 'Previous options config found (options.json). Load it?',
         initial: true,
         active: 'Yes',
-        inactive: 'No'
+        inactive: 'No',
     }
 ];
 
@@ -42,8 +42,10 @@ const clientOrServerQuestion = [
         name: 'ServerOptions',
         message: 'Server Options',
         choices: [
-            { title: 'Auth', value: { Auth: true }, description: 'Register/Login', selected: true },
-            { title: 'TokenValidation', value: { TokenVal: true }, description: 'Validate-JWT - Check for token, block requests without. ', selected: true },
+
+            { title: 'Validated', value: { TokenVal: true }, description: 'Check for token on endpoint ', selected: true },
+            { title: 'Async', value: { Async: true }, description: 'Show if endpoint is async', selected: true },
+
         ],
         instructions: false,
         max: 2,
@@ -83,7 +85,6 @@ const parseUser = user => {
     return user.split('/')[3]
 
 }
-
 
 (async () => {
     try {
@@ -136,10 +137,12 @@ const parseUser = user => {
                 Options: { ...clientOrServerResponse }
             }
         }
-        // Save Options File 
-        fs.writeFileSync("./options.json", JSON.stringify(optionsObj));
 
-        console.log(green('√ ') + "Options Saved As: options.json")
+        // Save Options File 
+        if (optionsObj) {
+            fs.writeFileSync("./options.json", JSON.stringify(optionsObj));
+            console.log(green('√ ') + "Options Saved As: options.json")
+        }
 
         let results = {}
         let grepCommand, cloneCommand, commitCommand, commitAmounts;
@@ -185,15 +188,32 @@ const parseUser = user => {
                         let fName = line.split('/')[1].split('.')[0].toLowerCase()
                         let method = (line.split('/')[1].split('.')[2]).slice(0, -2).toUpperCase()
                         let path = line.split("(")[1].split(',')[0].slice(1, -1)
+
                         let async = line.split("(")[1].split(',')[2] !== undefined ? true : false
                         let validated = line.split("(")[1].split(',').length === 3 ? true : false
+
+                        let tmpOptionsObj = { async, validated }
+
 
                         // Endpoint Obj
                         let resObj = {
                             Path: path,
                             Method: method,
-                            Validated: validated,
-                            Async: async
+                        }
+                        if (optionsObj.Options.ServerOptions.length > 0) {
+                            optionsObj.Options.ServerOptions.forEach((i) => {
+                                for (y in i) {
+                                    if (!resObj[y] || resObj[y] === true) {
+                                        Object.keys(tmpOptionsObj).forEach(i => {
+                                            resObj[y] = tmpOptionsObj[i]
+                                        })
+                                        if (resObj[y]) {
+                                            break
+                                        }
+                                    }
+                                }
+                            })
+
                         }
 
                         if (!results[parseUser(r)].Files[fName]) {
@@ -214,7 +234,6 @@ const parseUser = user => {
                         // Build Final Results Obj
                         results[parseUser(r)].Files[fName] = { NumOfEndpoints: cleaned.length, Endpoints: cleaned }
                         results[parseUser(r)] = { Branches: branchObj, ...results[parseUser(r)] }
-                        // results[parseUser(r)] = { ...results[parseUser(r)].Branches, ...results[parseUser(r)] }
 
                     })
                 }
@@ -229,7 +248,6 @@ const parseUser = user => {
         })
         console.log(green('√ ') + 'Results Saved As: results.json')
         cloneCommand?.on("exit", function () {
-            // console.log(`${parseName(r)} Cloned Successfully`);
             // console.log(`Repos Cloned Successfully`);
         });
 
@@ -242,8 +260,4 @@ const parseUser = user => {
         console.log(err)
     }
 })();
-
-
-// git shortlog -s -n
-// see all commits
 
