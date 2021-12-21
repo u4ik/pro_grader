@@ -1,5 +1,5 @@
 const prompts = require('prompts');
-const { bold, green } = require('kleur');
+const { green } = require('kleur');
 const fs = require('fs');
 
 const loadConfig = [
@@ -7,7 +7,7 @@ const loadConfig = [
         type: 'toggle',
         name: 'LoadPrev',
         message: 'Previous options config found (options.json). Load it?',
-        initial: false,
+        initial: true,
         active: 'Yes',
         inactive: 'No'
     }
@@ -57,7 +57,7 @@ const gitHubPrevURLQuestion = [
         type: 'toggle',
         name: 'LoadPrev',
         message: 'Use Current Repos in repos config?',
-        initial: false,
+        initial: true,
         active: 'Yes',
         inactive: 'No'
     }
@@ -92,10 +92,15 @@ const parseUser = user => {
 
         // If options file exists
         if (fs.existsSync(`./options.json`)) {
-            prevOptions = JSON.parse(fs.readFileSync('./options.json', 'utf-8'))
-            if (Object.keys(prevOptions.Options).length !== 0) {
-                console.log(prevOptions.Options)
-                loadPrevConfig = await (prompts(loadConfig))
+            try {
+                prevOptions = JSON.parse(fs.readFileSync('./options.json', 'utf-8'))
+                if (Object.keys(prevOptions.Options).length !== 0) {
+                    console.log(prevOptions.Options)
+                    loadPrevConfig = await (prompts(loadConfig))
+                }
+            } catch (err) {
+                console.log('Options file corrupt, please delete it.')
+                return
             }
         }
 
@@ -114,11 +119,12 @@ const parseUser = user => {
             }
         } else {
             // Load repos from options or not
-            if (fs.readdirSync('./repos')?.length !== 0 && prevOptions.Repos) {
-
+            if (!prevOptions) {
+                gitHubURLs = await (prompts(gitHubURLsQuestion))
+            }
+            else {
                 loadPrevRepos = await (prompts(gitHubPrevURLQuestion))
-
-                if (loadPrevRepos.LoadPrev) {
+                if (loadPrevRepos?.LoadPrev) {
                     gitHubURLs = { Repos: prevOptions?.Repos?.map(i => i.URL) }
                 } else {
                     gitHubURLs = await (prompts(gitHubURLsQuestion))
@@ -130,23 +136,38 @@ const parseUser = user => {
                 Options: { ...clientOrServerResponse }
             }
         }
-
         // Save Options File 
         fs.writeFileSync("./options.json", JSON.stringify(optionsObj));
 
         console.log(green('√ ') + "Options Saved As: options.json")
 
         let results = {}
-        let grepCommand;
-        let cloneCommand;
+        let grepCommand, cloneCommand, commitCommand, commitAmounts;
 
-        gitHubURLs?.Repos?.forEach((r) => {
+        gitHubURLs.Repos.forEach((r) => {
 
             let { spawn, exec } = require('child_process')
+
 
             cloneCommand = spawn('powershell.exe', [fs.existsSync(`./repos/${parseUser(r)}`) ? ` rm ./repos/${parseUser(r)} -Force -Recurse | git clone ${r} ./repos/${parseUser(r)}` : `git clone ${r} ./repos/${parseUser(r)}`]);
 
             if (fs.existsSync(`./repos/${parseUser(r)}`)) {
+                var tty = process.platform === 'win32' ? 'CON' : '/dev/tty';
+
+
+                let branchObj = {}
+
+                commitCommand = exec('git shortlog -sn < ' + tty, { cwd: `./repos/${parseUser(r)}` }, function (error, stdout, stderr) {
+
+                })
+                commitCommand.stdout.on("data", (data) => {
+                    let commitArr = data.split("\n").map(i => i.split("\t")).filter(i => i[0] !== '').map(i => [i[0].replace(/\s/g, ''), i[1]])
+                    // branchObj[commitArr[0]] = commitArr[1] + ' commits'
+                    commitArr.map(i => {
+                        branchObj[i[1]] = i[0] + ' commits'
+                    })
+
+                })
 
                 grepCommand = exec(`cd ./repos/${parseUser(r)} && git grep -r "router" ":!*.json" ":!*.md"`)
                 grepCommand.stdout.on("data", (data) => {
@@ -192,12 +213,17 @@ const parseUser = user => {
 
                         // Build Final Results Obj
                         results[parseUser(r)].Files[fName] = { NumOfEndpoints: cleaned.length, Endpoints: cleaned }
+                        results[parseUser(r)] = { Branches: branchObj, ...results[parseUser(r)] }
+                        // results[parseUser(r)] = { ...results[parseUser(r)].Branches, ...results[parseUser(r)] }
 
                     })
                 }
                 )
             }
             grepCommand?.stderr.on("data", function (data) {
+                console.log("Status: " + data);
+            });
+            commitCommand?.stderr.on("data", function (data) {
                 console.log("Status: " + data);
             });
         })
@@ -208,9 +234,9 @@ const parseUser = user => {
         });
 
         grepCommand?.on("exit", function () {
-            // console.dir(results, { depth: null, colors: true, breakLength: 150 })
             fs.writeFileSync("./results.json", JSON.stringify(results));
-            // console.log(green('Results Saved As: results.json'))
+        });
+        commitCommand?.on("exit", function () {
         });
     } catch (err) {
         console.log(err)
