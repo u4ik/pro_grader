@@ -55,6 +55,17 @@ const clientOrServerQuestion = [
     }
 ];
 
+const logResultsQuestion = [
+    {
+        type: 'toggle',
+        name: 'LogResults',
+        message: 'LogResults?',
+        initial: true,
+        active: 'Yes',
+        inactive: 'No'
+    }
+]
+
 const gitHubPrevURLQuestion = [
     {
         type: 'toggle',
@@ -115,6 +126,7 @@ const parseUser = user => {
 
                 loadPrevRepos = await (prompts(gitHubPrevURLQuestion))
 
+
                 if (loadPrevRepos.LoadPrev) {
                     gitHubURLs = { Repos: prevOptions?.Repos?.map(i => i.URL) }
                 } else {
@@ -135,12 +147,13 @@ const parseUser = user => {
                 }
             }
             const clientOrServerResponse = await (prompts(clientOrServerQuestion))
+            let logResultsRes = await (prompts(logResultsQuestion))
             optionsObj = {
                 Repos: gitHubURLs['Repos']?.map(r => r !== '' ? { URL: r, Name: parseName(r), GitHubUser: parseUser(r) } : null),
-                Options: { ...clientOrServerResponse }
+                Options: { ...clientOrServerResponse, [Object.keys(logResultsRes)[0]]: logResultsRes[Object.keys(logResultsRes)[0]] }
             }
         }
-
+        console.log(optionsObj)
         // Save Options File 
         if (optionsObj) {
             fs.writeFileSync(`${__dirname}` + "/options.json", JSON.stringify(optionsObj));
@@ -153,24 +166,14 @@ const parseUser = user => {
         gitHubURLs.Repos.forEach((r) => {
 
             let { spawn, exec } = require('child_process')
-
-
             cloneCommand = spawn(
-                // fs.existsSync(`${__dirname}` + `/repos/${parseUser(r)}`)
+
                 "powershell.exe", [fs.existsSync(`${__dirname}/repos/${parseUser(r)}`)
                     ?
                     `rm ./repos/${parseUser(r)} -Force -Recurse | git clone ${r} ${__dirname}/repos/${parseUser(r)}`
                     :
                     `git clone ${r} ${__dirname}/repos/${parseUser(r)}`]
             );
-            // cloneCommand = spawn('powershell.exe', [
-            //     // fs.existsSync(`${__dirname}` + `/repos/${parseUser(r)}`)
-            //     fs.existsSync(`./repos/${parseUser(r)}`)
-            //         ?
-            //         ` rm./ repos / ${parseUser(r)} - Force - Recurse | git clone ${r} ./ repos / ${parseUser(r)}`
-            //         :
-            //         `git clone ${r} ./ repos / ${parseUser(r)}`
-            // ]);
 
             if (fs.existsSync(`${__dirname}` + `/repos/${parseUser(r)}`)) {
                 let tty = process.platform === 'win32' ? 'CON' : '/dev/tty';

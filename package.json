@@ -1,5 +1,5 @@
 {
-    "name": "projectgrader",
+    "name": "p_grader",
     "version": "1.4.0",
     "description": "A tool to log express endpoints",
     "main": "index.js",
