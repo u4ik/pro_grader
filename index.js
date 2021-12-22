@@ -4,11 +4,9 @@ const path = require('path');
 const { green } = require('kleur');
 const { spawn, exec } = require('child_process')
 const fs = require('fs');
-
-
 const hyperlinker = require('hyperlinker');
 
-console.log()
+
 /*
 ___________TESTS_______________
 *______FROM  (NO REPOS)
@@ -342,6 +340,10 @@ const prevOptionsCheck = async () => {
                         });
                     });
                 }
+
+                exec(`fsutil.exe file setCaseSensitiveInfo ${__dirname + '/repos'} enable`)
+
+
                 let cloneRes = green('➡️ ') + `Cloning ${user}/${repoName}`
                 let cloneCommand = await promise(gitCloneCommand, cloneRes, { shell: shell })
                 console.log(cloneCommand)
