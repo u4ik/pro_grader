@@ -60,7 +60,7 @@ const commandPrompts = {
         {
             type: 'toggle',
             name: 'LogResults',
-            message: 'LogResults?',
+            message: 'Log Results?',
             initial: true,
             active: 'Yes',
             inactive: 'No'
@@ -247,7 +247,7 @@ const prevOptionsCheck = async () => {
 
 /*
 *______FROM  (NO REPOS)
-* [ ❌ ] - Load Prev Options + Load Prev Repos //! Does not log - Results.json not created, 
+* [ ✔️ ] - Load Prev Options + Load Prev Repos 
 * [ ❌ ] - Don't Load Prev Options + Don't Load Prev Repos //! Does not log - Results.json not created 
 
 *______FROM SCRATCH (NO REPOS, NO Options.json, No results.json)
