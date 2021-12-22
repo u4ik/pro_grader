@@ -341,7 +341,7 @@ const prevOptionsCheck = async () => {
                     });
                 }
 
-                exec(`fsutil.exe file setCaseSensitiveInfo ${__dirname + '/repos'} enable`)
+                exec(`fsutil.exe file setCaseSensitiveInfo ${__dirname + '/repos'} disable`)
 
 
                 let cloneRes = green('➡️ ') + `Cloning ${user}/${repoName}`
