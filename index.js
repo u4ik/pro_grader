@@ -88,8 +88,6 @@ const gitHubURLsQuestion = [
     },
 ];
 
-
-
 const optionsCorruptQuestion = [
     {
         type: 'message',
@@ -101,7 +99,6 @@ const optionsCorruptQuestion = [
     }
 ];
 
-
 const parseName = name => {
     return name.split('/')[4].split('.')[0]
 };
@@ -110,81 +107,99 @@ const parseUser = user => {
     return user.split('/')[3]
 };
 
+const parseRepoArray = arr => {
+    return { Repos: arr.map(r => r !== '' ? { URL: r, Name: parseName(r), GitHubUser: parseUser(r) } : null) }
+};
+
+const loadRepos = async (optObj) => {
+    if (optObj?.Repos?.length > 0) {
+        let loadPrevRepos = await (prompts(gitHubPrevURLQuestion))
+        let repoObj;
+        if (loadPrevRepos.LoadPrev) {
+            repoObj = { Repos: optObj['Repos'] }
+        } else {
+            tmp = await (prompts(gitHubURLsQuestion))
+            repoObj = parseRepoArray(tmp.Repos)
+        }
+        return repoObj
+    }
+};
+
+const prevOptionsCheck = async () => {
+    try {
+        let tmpLoad = { LoadPrev: false }
+        let { LoadPrev } = tmpLoad
+        let prevOpts = JSON.parse(fs.readFileSync(`${__dirname}` + '/options.json', 'utf-8'))
+        if (Object.keys(prevOpts.Options).length > 0) {
+            // console.log('found valid prev options ');
+            console.log(prevOpts)
+            tmpLoad = await (prompts(loadConfig))
+                ({ LoadPrev } = tmpLoad)
+            return [LoadPrev, prevOpts]
+        } else {
+            return [LoadPrev, prevOpts]
+        }
+    } catch (err) {
+        let optCorruptRes = await (prompts(optionsCorruptQuestion))
+        fs.unlinkSync(`${__dirname}` + '/options.json')
+        return [tmpLoad.LoadPrev, prevOpts]
+    };
+};
+
+/*
+* [ √ ] - Load Prev Options + Load Prev Repos //! Doesn't work on initial (command issue?)
+* [ √ ] - Don't Load Prev Options + Don't Load Prev Repos 
+*/
 (async () => {
     try {
-
-        let gitHubURLs, prevOptions = {}, optionsObj, loadPrevConfig;
+        let gitHubURLs, prevOptions = {}, optionsObj = {}, loadPrevOptions
 
         // If options file exists
         if (fs.existsSync(`${__dirname}` + '/options.json')) {
-            console.log('if options file exists');
-
-            try {
-                prevOptions = JSON.parse(fs.readFileSync(`${__dirname}` + '/options.json', 'utf-8'))
-                console.log({ prevOptions });
-                if (prevOptions.Options) {
-                    console.log('found valid prev options ');
-                    console.log(prevOptions.Options)
-                    loadPrevConfig = await (prompts(loadConfig))
-                }
-            } catch (err) {
-                console.log('')
-                loadPrevConfig = await (prompts(loadConfig))
-                fs.unlinkSync(`${__dirname}` + '/options.json')
-                return
-            }
+            [loadPrevOptions, prevOptions] = await prevOptionsCheck();
+            optionsObj = prevOptions;
         }
 
-        // Load Server/Client previous options or not
-        if (loadPrevConfig?.LoadPrev) {
-            optionsObj = prevOptions;
-            console.log('Load prev options');
+        // Load Server / Client previous options or not
+        if (loadPrevOptions) {
+            console.log('If prev options were selected')
+            // optionsObj = prevOptions;
 
-            if (prevOptions?.Repos?.length !== 0) {
-                console.log('No repos found, enter some');
-
-                loadPrevRepos = await (prompts(gitHubPrevURLQuestion))
-
-
-                if (loadPrevRepos.LoadPrev) {
-                    gitHubURLs = { Repos: prevOptions?.Repos?.map(i => ({ URL: i.URL })) }
-                } else {
-                    gitHubURLs = await (prompts(gitHubURLsQuestion))
-                }
-            }
-        } else {
             // Load repos from options or not
-            if (Object.keys(prevOptions) == 0) {
-                gitHubURLs = await (prompts(gitHubURLsQuestion))
-            }
-            else {
-                loadPrevRepos = await (prompts(gitHubPrevURLQuestion))
-                if (loadPrevRepos?.LoadPrev) {
-                    gitHubURLs = { Repos: prevOptions?.Repos?.map(i => i.URL) }
-                } else {
-                    let tmp = await (prompts(gitHubURLsQuestion))
-                    gitHubURLs = { Repos: tmp?.map(i => i.URL) }
-                }
-            }
+            gitHubURLs = await loadRepos(optionsObj);
+
+        } else {
+            console.log('no prev options')
+            // Load repos from options or not
+            gitHubURLs = await loadRepos(prevOptions);
+
             const clientOrServerResponse = await (prompts(clientOrServerQuestion))
             let logResultsRes = await (prompts(logResultsQuestion))
-            console.log(gitHubURLs);
+
             optionsObj = {
-                Repos: gitHubURLs['Repos']?.map(r => r !== '' ? { URL: r.URL, Name: parseName(r.URL), GitHubUser: parseUser(URL) } : null),
+                Repos: gitHubURLs.Repos?.map(r => {
+
+                    return r !== ''
+                        ?
+                        { URL: r.URL, Name: r.Name, GitHubUser: r.GitHubUser }
+                        : null
+                })
+                ,
                 Options: { ...clientOrServerResponse, [Object.keys(logResultsRes)[0]]: logResultsRes[Object.keys(logResultsRes)[0]] }
             }
+
         }
 
         // Save Options File 
-        // if (optionsObj) {
-        fs.writeFileSync(`${__dirname}` + "/options.json", JSON.stringify(optionsObj));
-        console.log(green('√ ') + "Options Saved As: options.json")
-        // }
+        if (Object.keys(optionsObj).length !== 0) {
+            fs.writeFileSync(`${__dirname}` + "/options.json", JSON.stringify(optionsObj));
+            console.log(green('√ ') + "Options Saved As: options.json")
+        }
 
         let results = {}
         let grepCommand, cloneCommand, commitCommand;
 
-        gitHubURLs.Repos.forEach((urlObj) => {
+        gitHubURLs?.Repos?.forEach((urlObj) => {
 
             const { URL } = urlObj
 
@@ -194,7 +209,7 @@ const parseUser = user => {
 
                 "powershell.exe", [fs.existsSync(`${__dirname}/repos/${parseUser(URL)}`)
                     ?
-                    `rm ./repos/${parseUser(URL)} -Force -Recurse | git clone ${URL} ${__dirname}/repos/${parseUser(URL)}`
+                    `rm ${__dirname}/repos/${parseUser(URL)} -Force -Recurse | git clone ${URL} ${__dirname}/repos/${parseUser(URL)}`
                     :
                     `git clone ${URL} ${__dirname}/repos/${parseUser(URL)}`]
             );
