@@ -12,6 +12,7 @@
         "grade": "index.js"
     },
     "dependencies": {
+        "node-async-exec": "^1.2.0",
         "prettier": "^2.5.1",
         "prompts": "^2.4.2"
     }
