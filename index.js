@@ -1,9 +1,39 @@
 #!/usr/bin/env node
 const prompts = require('prompts');
+const path = require('path');
 const { green } = require('kleur');
 const { spawn, exec } = require('child_process')
 const fs = require('fs');
-const execAsync = require('node-async-exec');
+
+
+const hyperlinker = require('hyperlinker');
+
+console.log()
+/*
+___________TESTS_______________
+*______FROM  (NO REPOS)
+* [ ✔️ ] - Load Prev Options + Load Prev Repos 
+* [ ✔️ ] - Don't Load Prev Options + Don't Load Prev Repos 
+
+*______FROM SCRATCH (NO REPOS, NO Options.json, No results.json)
+* [ ✔️ ] - Load Prev Options + Load Prev Repos 
+* [ ✔️ ] - Don't Load Prev Options + Don't Load Prev Repos 
+
+*______FROM (NO Options.json, No results.json)
+* [ ✔️ ] - Options + Log 
+* [ ✔️ ] - No Options + No Log 
+* [ ✔️ ] - No Options + Log 
+
+*______FROM ALREADY DOWNLOADED FILES (REPOS,OPTIONS,RESULTS)
+* [ ✔️ ] - Load Prev Options + Load Prev Repos
+* [ ✔️ ] - Don't Load Prev Options + Don't Load Prev Repos + Don't Log + No Options
+* [ ✔️ ] - Don't Load Prev Options + Don't Load Prev Repos + Log + Options
+
+TODO: - Add React TS Client
+TODO: - Add Additional server logic
+TODO: - Add toggle for cloning choice
+
+*/
 
 const commandPrompts = {
     loadConfig: [
@@ -203,11 +233,18 @@ const parseUser = user => {
 };
 
 const parseRepoArray = arr => {
-    return { Repos: arr.map(r => r !== '' ? { URL: r, Name: parseName(r), GitHubUser: parseUser(r) } : null) }
+    return {
+        Repos: arr.map(r => {
+            if (r !== '' && r !== undefined) {
+                return { URL: r, Name: parseName(r), GitHubUser: parseUser(r) }
+            }
+        }).filter(i => i !== undefined)
+    }
 };
 
 const loadRepos = async (optObj) => {
     if (optObj?.Repos?.length > 0) {
+        console.log(optObj.Repos.map(i => i['URL']))
         let loadPrevRepos = await (prompts(gitHubPrevURLQuestion))
         let repoObj;
         if (loadPrevRepos.LoadPrev) {
@@ -228,7 +265,7 @@ const prevOptionsCheck = async () => {
     try {
         let tmpLoad = { LoadPrev: false }
         let { LoadPrev } = tmpLoad
-        let prevOpts = JSON.parse(fs.readFileSync(`${__dirname}` + '/options.json', 'utf-8'))
+        let prevOpts = JSON.parse(fs.readFileSync(`${__dirname}` + '/config.json', 'utf-8'))
         if (Object.keys(prevOpts.Options).length > 0) {
             console.log(prevOpts.Options)
             tmpLoad = await (prompts(loadConfig))
@@ -240,37 +277,17 @@ const prevOptionsCheck = async () => {
     } catch (err) {
         // let optCorruptRes = await (prompts(optionsCorruptQuestion))
         console.log('Options file corrupt... Rebuilding')
-        fs.unlinkSync(`${__dirname}` + '/options.json')
+        fs.unlinkSync(`${__dirname}` + '/config.json')
         return [false, {}]
     };
 };
-
-/*
-*______FROM  (NO REPOS)
-* [ ✔️ ] - Load Prev Options + Load Prev Repos 
-* [ ❌ ] - Don't Load Prev Options + Don't Load Prev Repos //! Does not log - Results.json not created 
-
-*______FROM SCRATCH (NO REPOS, NO Options.json, No results.json)
-* [ ❌ ] - Load Prev Options + Load Prev Repos 
-* [ ✔️ ] - Don't Load Prev Options + Don't Load Prev Repos 
-
-*______FROM (NO Options.json, No results.json)
-* [ ✔️ ] - Options + Log 
-* [ ✔️ ] - No Options + No Log 
-* [ ✔️ ] - No Options + Log 
-
-*______FROM ALREADY DOWNLOADED FILES (REPOS,OPTIONS,RESULTS)
-* [ ✔️ ] - Load Prev Options + Load Prev Repos
-* [ ✔️ ] - Don't Load Prev Options + Don't Load Prev Repos + Don't Log + No Options
-* [ ✔️ ] - Don't Load Prev Options + Don't Load Prev Repos + Log + Options
-*/
 
 (async () => {
     try {
         let gitHubURLs, prevOptions = {}, optionsObj = {}, loadPrevOptions, os = process.platform
         let shell = os === 'win32' ? 'pwsh.exe' : true
         // If options file exists
-        if (fs.existsSync(`${__dirname}` + '/options.json')) {
+        if (fs.existsSync(`${__dirname}` + '/config.json')) {
             [loadPrevOptions, prevOptions] = await prevOptionsCheck();
             optionsObj = prevOptions;
         }
@@ -278,10 +295,10 @@ const prevOptionsCheck = async () => {
         if (loadPrevOptions) {
             // Load repos from options or not
             gitHubURLs = await loadRepos(optionsObj);
+
         } else {
             // Load repos from options or not
-            gitHubURLs = await loadRepos(prevOptions);
-
+            gitHubURLs = await loadRepos(optionsObj);
             const clientOrServerResponse = await (prompts(clientOrServerQuestion))
             let logResultsRes = await (prompts(logResultsQuestion))
 
@@ -290,15 +307,13 @@ const prevOptionsCheck = async () => {
                 Options: { ...clientOrServerResponse, [Object.keys(logResultsRes)[0]]: logResultsRes[Object.keys(logResultsRes)[0]] }
             }
         }
-
         // Save Options File 
         if (Object.keys(optionsObj).length !== 0) {
-            fs.writeFileSync(`${__dirname}` + "/options.json", JSON.stringify(optionsObj));
-            console.log(green('√ ') + "Options Saved As: options.json")
+            fs.writeFileSync(`${__dirname}` + "/config.json", JSON.stringify(optionsObj));
+            console.log(green('√ ') + `Config Saved As: ${hyperlinker(green('config.json'), __dirname + '/config.json')}`)
         }
 
         let results = {}
-
 
         gitHubURLs.Repos.forEach(async ({ URL, Name, GitHubUser }) => {
             try {
@@ -327,7 +342,7 @@ const prevOptionsCheck = async () => {
                         });
                     });
                 }
-                let cloneRes = green('√ ') + `Cloning ${user}/${repoName}`
+                let cloneRes = green('➡️ ') + `Cloning ${user}/${repoName}`
                 let cloneCommand = await promise(gitCloneCommand, cloneRes, { shell: shell })
                 console.log(cloneCommand)
 
@@ -413,7 +428,8 @@ const prevOptionsCheck = async () => {
                         console.dir(results, { depth: null });
                     }
                     fs.writeFileSync("./results.json", JSON.stringify(results));
-                    console.log(green('√ ') + 'Results Saved As: results.json')
+                    console.log(green('√ ') + `Results Saved As: ${hyperlinker(green('results.json'), __dirname + '/results.json')}`)
+                    console.log(path.join(__dirname, 'config.json'))
                 }
             } catch (err) {
                 console.log({ err });
