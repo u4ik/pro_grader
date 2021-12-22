@@ -312,7 +312,9 @@ const prevOptionsCheck = async () => {
         }
 
         let results = {}
-
+        if (os === 'win32') {
+            exec(`git config core.ignorecase true`, '')
+        }
         gitHubURLs.Repos.forEach(async ({ URL, Name, GitHubUser }) => {
             try {
                 let user = GitHubUser
@@ -341,7 +343,8 @@ const prevOptionsCheck = async () => {
                     });
                 }
 
-                exec(`fsutil.exe file setCaseSensitiveInfo ${__dirname + '/repos'} disable`)
+
+
 
 
                 let cloneRes = green('➡️ ') + `Cloning ${user}/${repoName}`
