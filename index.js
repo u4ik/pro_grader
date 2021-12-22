@@ -298,7 +298,7 @@ const prevOptionsCheck = async () => {
         }
 
         let results = {}
-        let grepCommand, commitCommand;
+
 
         gitHubURLs.Repos.forEach(async ({ URL, Name, GitHubUser }) => {
             try {
@@ -336,9 +336,6 @@ const prevOptionsCheck = async () => {
                     let commitCommandStr = 'git shortlog -sn < ' + tty
                     let commitOpts = { cwd: `${userDir}` }
                     let branchObj = {}
-
-                    console.log('found user dir')
-
                     let commitCommand = await promise(commitCommandStr, '', commitOpts)
 
                     let commitArr = commitCommand.split("\n").map(i => i.split("\t")).filter(i => i[0] !== '').map(i => [i[0].replace(/\s/g, ''), i[1]])
@@ -347,79 +344,82 @@ const prevOptionsCheck = async () => {
                     })
 
                     let grepCommandStr = `cd ${userDir} && git grep -r "router" ":!*.json" ":!*.md"`
-
                     grepCommand = await promise(grepCommandStr, '')
 
+                    let endpoints = grepCommand.split('\n').filter(i => i[0] === 'c').filter(i => !i.includes('//')).filter(i => i.includes('router.'))
 
-                    grepCommand.stdout.on("data", (data) => {
-
-                        let endpoints = data.split('\n').filter(i => i[0] === 'c').filter(i => !i.includes('//')).filter(i => i.includes('router.'))
-
-                        if (!results[parseUser(URL)]) {
-                            results[parseUser(URL)] = {
-                                Files: {}
-                            }
+                    if (!results[parseUser(URL)]) {
+                        results[parseUser(URL)] = {
+                            Files: {}
                         }
-                        endpoints.forEach((line) => {
+                    }
 
-                            // Parse Data
-                            let fName = line.split('/')[1].split('.')[0].toLowerCase()
-                            let method = (line.split('/')[1].split('.')[2]).slice(0, -2).toUpperCase()
-                            let path = line.split("(")[1].split(',')[0].slice(1, -1)
+                    endpoints.forEach((line) => {
+                        // Parse Data
+                        let fName = line.split('/')[1].split('.')[0].toLowerCase()
+                        let method = (line.split('/')[1].split('.')[2]).slice(0, -2).toUpperCase()
+                        let path = line.split("(")[1].split(',')[0].slice(1, -1)
 
-                            let async = line.split("(")[1].split(',')[2] !== undefined ? true : false
-                            let validated = line.split("(")[1].split(',').length === 3 ? true : false
+                        let async = line.split("(")[1].split(',')[2] !== undefined ? true : false
+                        let validated = line.split("(")[1].split(',').length === 3 ? true : false
 
-                            let tmpOptionsObj = { async, validated }
+                        let tmpOptionsObj = { async, validated }
 
-                            // Endpoint Obj
-                            let resObj = {
-                                Path: path,
-                                Method: method,
-                            }
-                            if (optionsObj.Options.ServerOptions.length > 0) {
-                                optionsObj.Options.ServerOptions.forEach((i) => {
-                                    for (y in i) {
-                                        if (!resObj[y] || resObj[y] === true) {
-                                            Object.keys(tmpOptionsObj).forEach(i => {
-                                                resObj[y] = tmpOptionsObj[i]
-                                            })
-                                            if (resObj[y]) {
-                                                break
-                                            }
+                        // Endpoint Obj
+                        let resObj = {
+                            Path: path,
+                            Method: method,
+                        }
+                        if (optionsObj.Options.ServerOptions.length > 0) {
+                            optionsObj.Options.ServerOptions.forEach((i) => {
+                                for (y in i) {
+                                    if (!resObj[y] || resObj[y] === true) {
+                                        Object.keys(tmpOptionsObj).forEach(i => {
+                                            resObj[y] = tmpOptionsObj[i]
+                                        })
+                                        if (resObj[y]) {
+                                            break
                                         }
                                     }
-                                })
-
-                            }
-
-                            if (!results[user].Files[fName]) {
-                                results[user].Files[fName] = {
-                                    Endpoints: [
-
-                                    ]
                                 }
+                            })
+
+                        }
+
+                        if (!results[user].Files[fName]) {
+                            results[user].Files[fName] = {
+                                Endpoints: [
+
+                                ]
                             }
+                        }
 
-                            results[user].Files[fName].Endpoints.push(resObj)
+                        results[user].Files[fName].Endpoints.push(resObj)
 
-                            //Remove Dupes
-                            let tmp = results[user].Files[fName].Endpoints
-                            results[user].Files[fName].Endpoints = Array.from(new Set(tmp.map(JSON.stringify))).map((i) => JSON.parse(i));
-                            let cleaned = results[user].Files[fName].Endpoints
+                        //Remove Dupes
+                        let tmp = results[user].Files[fName].Endpoints
+                        results[user].Files[fName].Endpoints = Array.from(new Set(tmp.map(JSON.stringify))).map((i) => JSON.parse(i));
+                        let cleaned = results[user].Files[fName].Endpoints
 
-                            // Build Final Results Obj
-                            results[user].Files[fName] = { NumOfEndpoints: cleaned.length, Endpoints: cleaned }
-                            results[user] = { Branches: branchObj, ...results[user] }
+                        // Build Final Results Obj
+                        results[user].Files[fName] = { NumOfEndpoints: cleaned.length, Endpoints: cleaned }
+                        results[user] = { Branches: branchObj, ...results[user] }
 
-                        });
-                        console.log(results);
                     });
+
                 };
+                if (Object.keys(results).length === gitHubURLs.Repos.length) {
+                    if (optionsObj.Options.LogResults) {
+                        console.dir(results, { depth: null });
+                    }
+                    fs.writeFileSync("./results.json", JSON.stringify(results));
+                    console.log(green('√ ') + 'Results Saved As: results.json')
+                }
             } catch (err) {
                 console.log({ err });
             };
         });
+
     } catch (err) {
         console.log({ err });
     };
