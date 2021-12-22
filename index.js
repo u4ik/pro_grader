@@ -267,7 +267,6 @@ const prevOptionsCheck = async () => {
 
 (async () => {
     try {
-
         let gitHubURLs, prevOptions = {}, optionsObj = {}, loadPrevOptions, os = process.platform
         let shell = os === 'win32' ? 'pwsh.exe' : true
         // If options file exists
@@ -292,7 +291,6 @@ const prevOptionsCheck = async () => {
             }
         }
 
-
         // Save Options File 
         if (Object.keys(optionsObj).length !== 0) {
             fs.writeFileSync(`${__dirname}` + "/options.json", JSON.stringify(optionsObj));
@@ -300,144 +298,130 @@ const prevOptionsCheck = async () => {
         }
 
         let results = {}
-        let grepCommand, cloneCommand, commitCommand;
+        let grepCommand, commitCommand;
 
-        gitHubURLs?.Repos?.forEach(async ({ URL }) => {
-            // try {
+        gitHubURLs.Repos.forEach(async ({ URL, Name, GitHubUser }) => {
+            try {
+                let user = GitHubUser
+                let repoName = Name
+                let userDir = `${__dirname}/repos/${user}`
+                let gitCloneCommand = fs.existsSync(userDir)
+                    ?
+                    `${os === 'win32' ? 'del' : 'rm'} ${userDir} -Force -Recurse && git clone  ${URL} ${userDir} --quiet`
+                    :
+                    `git clone ${URL} ${userDir} --quiet`
 
-            let command = fs.existsSync(`${__dirname}/repos/${parseUser(URL)}`)
-                ?
-                `${os === 'win32' ? 'del' : 'rm'} ${__dirname}/repos/${parseUser(URL)} -Force -Recurse && git clone ${URL} ${__dirname}/repos/${parseUser(URL)}`
-                :
-                `git clone ${URL} ${__dirname}/repos/${parseUser(URL)}`
+                async function promise(cmd, resMsg, opts = {}) {
+                    return new Promise((resolve, reject) => {
+                        exec(cmd, { ...opts }, (error, stdout, stderr) => {
+                            if (error) {
+                                console.log({ error })
+                                reject();
+                            } else if (stderr) {
+                                console.log({ stderr })
+                            } else if (stdout.length > 0) {
+                                resolve(stdout)
+                            } else {
+                                resolve(resMsg);
+                            }
+                        });
+                    });
+                }
+                let cloneRes = green('√ ') + `Cloning ${user}/${repoName}`
+                let cloneCommand = await promise(gitCloneCommand, cloneRes, { shell: shell })
+                console.log(cloneCommand)
 
+                if (fs.existsSync(`${userDir}`)) {
+                    let tty = os === 'win32' ? 'CON' : '/dev/tty';
+                    let commitCommandStr = 'git shortlog -sn < ' + tty
+                    let commitOpts = { cwd: `${userDir}` }
+                    let branchObj = {}
 
-            // cloneCommand = exec(command, { shell: shell }, (error, stdout, stderr) => {
-            //     console.log(stdout)
-            //     if (!error) {
-            //         console.log(stdout)
-            //     } else if (stderr) {
-            //         console.log(stderr)
-            //     } else {
-            //         console.log(error)
-            //     }
-            // })
-            cloneCommand = await execAsync({ path: __dirname, cmd: command })
+                    console.log('found user dir')
 
-            if (fs.existsSync(`${__dirname}/repos/${parseUser(URL)}`)) {
-                // if (cloneCommand || fs.existsSync(`${__dirname}/repos/${parseUser(URL)}`)) {
-                console.log('loading')
-                let tty = os === 'win32' ? 'CON' : '/dev/tty';
-                let branchObj = {}
+                    let commitCommand = await promise(commitCommandStr, '', commitOpts)
 
-                commitCommand = exec('git shortlog -sn < ' + tty, { cwd: `${__dirname}/repos/${parseUser(URL)}` }, function (error, stdout, stderr) {
-
-                })
-                commitCommand.stdout.on("data", (data) => {
-                    let commitArr = data.split("\n").map(i => i.split("\t")).filter(i => i[0] !== '').map(i => [i[0].replace(/\s/g, ''), i[1]])
+                    let commitArr = commitCommand.split("\n").map(i => i.split("\t")).filter(i => i[0] !== '').map(i => [i[0].replace(/\s/g, ''), i[1]])
                     commitArr.map(i => {
                         branchObj[i[1]] = i[0] + ' commits'
                     })
-                })
 
-                grepCommand = exec(`cd ${__dirname}/repos/${parseUser(URL)} && git grep -r "router" ":!*.json" ":!*.md"`)
-                grepCommand.stdout.on("data", (data) => {
+                    let grepCommandStr = `cd ${userDir} && git grep -r "router" ":!*.json" ":!*.md"`
 
-                    let endpoints = data.split('\n').filter(i => i[0] === 'c').filter(i => !i.includes('//')).filter(i => i.includes('router.'))
+                    grepCommand = await promise(grepCommandStr, '')
 
-                    if (!results[parseUser(URL)]) {
-                        results[parseUser(URL)] = {
-                            Files: {}
-                        }
-                    }
-                    endpoints.forEach((line) => {
 
-                        // Parse Data
-                        let fName = line.split('/')[1].split('.')[0].toLowerCase()
-                        let method = (line.split('/')[1].split('.')[2]).slice(0, -2).toUpperCase()
-                        let path = line.split("(")[1].split(',')[0].slice(1, -1)
+                    grepCommand.stdout.on("data", (data) => {
 
-                        let async = line.split("(")[1].split(',')[2] !== undefined ? true : false
-                        let validated = line.split("(")[1].split(',').length === 3 ? true : false
+                        let endpoints = data.split('\n').filter(i => i[0] === 'c').filter(i => !i.includes('//')).filter(i => i.includes('router.'))
 
-                        let tmpOptionsObj = { async, validated }
-
-                        // Endpoint Obj
-                        let resObj = {
-                            Path: path,
-                            Method: method,
-                        }
-                        if (optionsObj.Options.ServerOptions.length > 0) {
-                            optionsObj.Options.ServerOptions.forEach((i) => {
-                                for (y in i) {
-                                    if (!resObj[y] || resObj[y] === true) {
-                                        Object.keys(tmpOptionsObj).forEach(i => {
-                                            resObj[y] = tmpOptionsObj[i]
-                                        })
-                                        if (resObj[y]) {
-                                            break
-                                        }
-                                    }
-                                }
-                            })
-
-                        }
-
-                        if (!results[parseUser(URL)].Files[fName]) {
-                            results[parseUser(URL)].Files[fName] = {
-                                Endpoints: [
-
-                                ]
+                        if (!results[parseUser(URL)]) {
+                            results[parseUser(URL)] = {
+                                Files: {}
                             }
                         }
+                        endpoints.forEach((line) => {
 
-                        results[parseUser(URL)].Files[fName].Endpoints.push(resObj)
+                            // Parse Data
+                            let fName = line.split('/')[1].split('.')[0].toLowerCase()
+                            let method = (line.split('/')[1].split('.')[2]).slice(0, -2).toUpperCase()
+                            let path = line.split("(")[1].split(',')[0].slice(1, -1)
 
-                        //Remove Dupes
-                        let tmp = results[parseUser(URL)].Files[fName].Endpoints
-                        results[parseUser(URL)].Files[fName].Endpoints = Array.from(new Set(tmp.map(JSON.stringify))).map((i) => JSON.parse(i));
-                        let cleaned = results[parseUser(URL)].Files[fName].Endpoints
+                            let async = line.split("(")[1].split(',')[2] !== undefined ? true : false
+                            let validated = line.split("(")[1].split(',').length === 3 ? true : false
 
-                        // Build Final Results Obj
-                        results[parseUser(URL)].Files[fName] = { NumOfEndpoints: cleaned.length, Endpoints: cleaned }
-                        results[parseUser(URL)] = { Branches: branchObj, ...results[parseUser(URL)] }
+                            let tmpOptionsObj = { async, validated }
 
+                            // Endpoint Obj
+                            let resObj = {
+                                Path: path,
+                                Method: method,
+                            }
+                            if (optionsObj.Options.ServerOptions.length > 0) {
+                                optionsObj.Options.ServerOptions.forEach((i) => {
+                                    for (y in i) {
+                                        if (!resObj[y] || resObj[y] === true) {
+                                            Object.keys(tmpOptionsObj).forEach(i => {
+                                                resObj[y] = tmpOptionsObj[i]
+                                            })
+                                            if (resObj[y]) {
+                                                break
+                                            }
+                                        }
+                                    }
+                                })
 
-                    })
+                            }
 
-                }
-                )
-            }
+                            if (!results[user].Files[fName]) {
+                                results[user].Files[fName] = {
+                                    Endpoints: [
 
-        });
+                                    ]
+                                }
+                            }
 
-        commitCommand?.stderr.on("data", function (data) {
-            console.log("Status: " + data);
-        });
+                            results[user].Files[fName].Endpoints.push(resObj)
 
-        grepCommand?.stderr.on("data", function (data) {
-            // console.log(optionsObj)
-            // fs.writeFileSync(`${__dirname}` + "/results.json", JSON.stringify(results));
-            // console.log(green('√ ') + 'Results Saved As: results.json')
-            console.dir(results, { depth: null, colors: true });
-        });
-        grepCommand?.on("exit", function () {
-            // console.log(optionsObj)
-            fs.writeFileSync(`${__dirname}` + "/results.json", JSON.stringify(results));
-            console.log(green('√ ') + 'Results Saved As: results.json')
-            if (optionsObj.Options.LogResults) {
-                console.dir(results, { depth: null, colors: true });
-            }
-        });
+                            //Remove Dupes
+                            let tmp = results[user].Files[fName].Endpoints
+                            results[user].Files[fName].Endpoints = Array.from(new Set(tmp.map(JSON.stringify))).map((i) => JSON.parse(i));
+                            let cleaned = results[user].Files[fName].Endpoints
 
-        commitCommand?.on("exit", function () {
-            // if (optionsObj.Options.LogResults) {
-            // console.dir(results, { depth: null, colors: true });
-            // }
+                            // Build Final Results Obj
+                            results[user].Files[fName] = { NumOfEndpoints: cleaned.length, Endpoints: cleaned }
+                            results[user] = { Branches: branchObj, ...results[user] }
+
+                        });
+                        console.log(results);
+                    });
+                };
+            } catch (err) {
+                console.log({ err });
+            };
         });
     } catch (err) {
         console.log({ err });
-        return err
     };
 })();
 
