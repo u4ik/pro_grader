@@ -76,6 +76,7 @@ const commandPrompts = {
 
                 { title: 'Validated', value: { TokenVal: true }, description: 'Check for token on endpoint ', selected: true },
                 { title: 'Async', value: { Async: true }, description: 'Show if endpoint is async', selected: true },
+                { title: 'Bcrypt', value: { Bcrypt: true }, description: 'Is Bcrypt used in Auth Signup/Login?', selected: true },
 
             ],
             instructions: false,
@@ -186,10 +187,30 @@ const prevOptionsCheck = async () => {
     };
 };
 
+async function promise(cmd, resMsg, opts = {}) {
+    return new Promise((resolve, reject) => {
+        exec(cmd, { ...opts }, (error, stdout, stderr) => {
+            if (error) {
+                console.log({ error })
+                reject();
+            } else if (stderr) {
+                console.log({ stderr })
+            } else if (stdout.length > 0) {
+                resolve(stdout)
+            } else {
+                resolve(resMsg);
+            }
+        });
+    });
+};
+
 (async () => {
     try {
         let gitHubURLs, prevOptions = {}, optionsObj = {}, loadPrevOptions, os = process.platform
         let shell = os === 'win32' ? 'pwsh.exe' : true
+        if (os === 'win32') {
+            exec(`git config core.ignorecase true`, '')
+        }
         // If options file exists
         if (fs.existsSync(`${__dirname}` + '/config.json')) {
             [loadPrevOptions, prevOptions] = await prevOptionsCheck();
@@ -219,11 +240,11 @@ const prevOptionsCheck = async () => {
         }
 
         let results = {}
-        if (os === 'win32') {
-            exec(`git config core.ignorecase true`)
-        }
+
         gitHubURLs.Repos.forEach(async ({ URL, Name, GitHubUser }) => {
             try {
+
+                // Clone down repos
                 let user = GitHubUser
                 let repoName = Name
                 let userDir = `${__dirname}/repos/${user}`
@@ -233,27 +254,13 @@ const prevOptionsCheck = async () => {
                     :
                     `git clone ${URL} ${userDir} --quiet`
 
-                async function promise(cmd, resMsg, opts = {}) {
-                    return new Promise((resolve, reject) => {
-                        exec(cmd, { ...opts }, (error, stdout, stderr) => {
-                            if (error) {
-                                console.log({ error })
-                                reject();
-                            } else if (stderr) {
-                                console.log({ stderr })
-                            } else if (stdout.length > 0) {
-                                resolve(stdout)
-                            } else {
-                                resolve(resMsg);
-                            }
-                        });
-                    });
-                }
+
 
                 let cloneRes = green('➡️ ') + `Cloning ${user}/${repoName}`
                 let cloneCommand = await promise(gitCloneCommand, cloneRes, { shell: shell })
                 console.log(cloneCommand)
 
+                // If directory exists/after clone, run commands -> commitCount/grep/Bcrypt
                 if (fs.existsSync(`${userDir}`)) {
                     let tty = os === 'win32' ? 'CON' : '/dev/tty';
                     let commitCommandStr = 'git shortlog -sn < ' + tty
