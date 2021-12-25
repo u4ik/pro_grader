@@ -80,7 +80,7 @@ const commandPrompts = {
 
             ],
             instructions: false,
-            max: 2,
+            max: 3,
             hint: '- Space to select. Enter to submit',
 
         }
@@ -115,6 +115,18 @@ const commandPrompts = {
             validate: value => value.length === 0 ? `URLs cannot be blank!` : true
         },
     ],
+
+    gitHubCloneRepoQuestion: [
+        {
+            type: 'toggle',
+            name: 'Reclone',
+            message: 'Re-clone repos?',
+            initial: true,
+            active: 'Yes',
+            inactive: 'No'
+        }
+    ],
+
     optionsCorruptQuestion: [
         {
             type: 'message',
@@ -127,7 +139,7 @@ const commandPrompts = {
     ]
 }
 
-const { loadConfig, clientOrServerQuestion, logResultsQuestion, gitHubPrevURLQuestion, gitHubURLsQuestion, optionsCorruptQuestion } = commandPrompts
+const { loadConfig, clientOrServerQuestion, logResultsQuestion, gitHubPrevURLQuestion, gitHubCloneRepoQuestion, gitHubURLsQuestion, optionsCorruptQuestion } = commandPrompts
 
 const parseName = name => {
     return name.split('/')[4].split('.')[0]
@@ -147,13 +159,30 @@ const parseRepoArray = arr => {
     }
 };
 
+const cloneRepos = async (obj) => {
+
+    let recloneRepos = await (prompts(gitHubCloneRepoQuestion))
+    if (recloneRepos.Reclone) {
+        obj = { Options: { [Object.keys(recloneRepos)[0]]: recloneRepos[Object.keys(recloneRepos)[0]], ...obj.Options } }
+    }
+
+    return obj.Options
+}
+
 const loadRepos = async (optObj) => {
     if (optObj?.Repos?.length > 0) {
         console.log(optObj.Repos.map(i => i['URL']))
         let loadPrevRepos = await (prompts(gitHubPrevURLQuestion))
         let repoObj;
         if (loadPrevRepos.LoadPrev) {
-            repoObj = { Repos: optObj['Repos'] }
+            if (!optObj.Options.Reclone) {
+
+                let tmp = await cloneRepos(optObj)
+                repoObj = {
+                    Repos: optObj['Repos'], Options: { ...optObj.Options, ...tmp }
+                }
+                console.log({ repoObj })
+            }
         } else {
             tmp = await (prompts(gitHubURLsQuestion))
             repoObj = parseRepoArray(tmp.Repos)
@@ -220,21 +249,32 @@ async function promise(cmd, resMsg, opts = {}) {
         if (loadPrevOptions) {
             // Load repos from options or not
             gitHubURLs = await loadRepos(optionsObj);
+            console.log({ gitHubURLs })
+            console.log("load prev", gitHubURLs)
+            optionsObj = gitHubURLs
 
         } else {
             // Load repos from options or not
             gitHubURLs = await loadRepos(optionsObj);
+            console.log("new options", gitHubURLs)
             const clientOrServerResponse = await (prompts(clientOrServerQuestion))
             let logResultsRes = await (prompts(logResultsQuestion))
 
+            let selectedOptions = {
+                ...clientOrServerResponse,
+                [Object.keys(logResultsRes)[0]]: logResultsRes[Object.keys(logResultsRes)[0]],
+                ...gitHubURLs.Options
+            }
+
             optionsObj = {
                 Repos: gitHubURLs.Repos,
-                Options: { ...clientOrServerResponse, [Object.keys(logResultsRes)[0]]: logResultsRes[Object.keys(logResultsRes)[0]] }
+                Options: { ...selectedOptions }
             }
         }
 
         // Save Options File 
         if (Object.keys(optionsObj).length !== 0) {
+            console.log(optionsObj)
             fs.writeFileSync(`${__dirname}` + "/config.json", JSON.stringify(optionsObj));
             console.log(green('√ ') + `Config Saved As: ${hyperlinker(green('config.json'), __dirname + '/config.json')}`)
         }
