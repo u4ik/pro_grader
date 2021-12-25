@@ -313,7 +313,7 @@ const prevOptionsCheck = async () => {
 
         let results = {}
         if (os === 'win32') {
-            exec(`git config core.ignorecase true`, '')
+            exec(`git config core.ignorecase true`)
         }
         gitHubURLs.Repos.forEach(async ({ URL, Name, GitHubUser }) => {
             try {
