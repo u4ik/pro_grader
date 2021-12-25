@@ -139,7 +139,6 @@ const parseUser = user => {
 const parseRepoArray = arr => {
     return {
         Repos: arr.map(r => {
-            console.log(r)
             if (r !== '' && r !== undefined) {
                 return { URL: r, Name: parseName(r), GitHubUser: parseUser(r) }
             }
@@ -213,7 +212,6 @@ const prevOptionsCheck = async () => {
             }
         }
 
-        console.log(gitHubURLs)
         // Save Options File 
         if (Object.keys(optionsObj).length !== 0) {
             fs.writeFileSync(`${__dirname}` + "/config.json", JSON.stringify(optionsObj));
