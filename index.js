@@ -218,6 +218,7 @@ const prevOptionsCheck = async () => {
             console.log(green('√ ') + `Config Saved As: ${hyperlinker(green('config.json'), __dirname + '/config.json')}`)
         }
 
+
         let results = {}
         if (os === 'win32') {
             exec(`git config core.ignorecase true`, '')

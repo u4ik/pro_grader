@@ -3,4 +3,4 @@ results.json
 options.json
 config.json
 /repos/*/
-.txt
+*.txt
