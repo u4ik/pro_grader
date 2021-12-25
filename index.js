@@ -28,7 +28,7 @@ ___________TESTS_______________
 * [ ✔️ ] - Don't Load Prev Options + Don't Load Prev Repos + Log + Options
 
 TODO: - Add React TS Client
-TODO: - Add Additional server logic
+TODO: - Add Additional server logic - check for dependency use bcryptjs, JWT_SECRET, admin, dotenv
 TODO: - Add toggle for cloning choice
 
 */
@@ -125,101 +125,7 @@ const commandPrompts = {
         }
     ]
 }
-// const loadConfig = [
-//     {
-//         type: 'toggle',
-//         name: 'LoadPrev',
-//         message: 'Previous options config found (options.json). Load it?',
-//         initial: true,
-//         active: 'Yes',
-//         inactive: 'No',
-//     }
-// ];
 
-// const clientOrServerQuestion = [
-//     {
-//         type: 'select',
-//         name: 'Selection',
-//         message: 'Client or Server',
-//         choices: [
-//             { title: 'Client', description: 'React/FC Components', value: 'Client', disabled: true },
-//             { title: 'Server', description: 'Node Express Server', value: 'Server' },
-//         ],
-//         initial: 1,
-//     },
-//     {
-//         type: prev => prev === 'Client' ? 'multiselect' : null,
-//         name: 'ClientOptions',
-//         message: 'Client Options',
-//         choices: [
-//             { title: 'Red', value: '#ff0000', selected: true },
-//             { title: 'Green', value: '#00ff00', selected: true },
-//             { title: 'Blue', value: '#0000ff', selected: true }
-//         ],
-//         instructions: false,
-//         max: 2,
-//         hint: '- Space to select. Return to submit'
-//     },
-//     {
-//         type: prev => prev === 'Server' ? 'multiselect' : null,
-//         name: 'ServerOptions',
-//         message: 'Server Options',
-//         choices: [
-
-//             { title: 'Validated', value: { TokenVal: true }, description: 'Check for token on endpoint ', selected: true },
-//             { title: 'Async', value: { Async: true }, description: 'Show if endpoint is async', selected: true },
-
-//         ],
-//         instructions: false,
-//         max: 2,
-//         hint: '- Space to select. Enter to submit',
-
-//     }
-// ];
-
-// const logResultsQuestion = [
-//     {
-//         type: 'toggle',
-//         name: 'LogResults',
-//         message: 'LogResults?',
-//         initial: true,
-//         active: 'Yes',
-//         inactive: 'No'
-//     }
-// ];
-
-// const gitHubPrevURLQuestion = [
-//     {
-//         type: 'toggle',
-//         name: 'LoadPrev',
-//         message: 'Use Current Repos in repos config?',
-//         initial: true,
-//         active: 'Yes',
-//         inactive: 'No'
-//     }
-// ];
-
-// const gitHubURLsQuestion = [
-//     {
-//         type: 'list',
-//         name: 'Repos',
-//         message: `Enter Github Repo URLs Separated By Commas.`,
-//         initial: '',
-//         separator: ',',
-//         validate: value => value.length === 0 ? `URLs cannot be blank!` : true
-//     },
-// ];
-
-// const optionsCorruptQuestion = [
-//     {
-//         type: 'message',
-//         name: 'OptionsCorrupt',
-//         message: 'Options file corrupt, it will be removed and rebuilt.',
-//         initial: true,
-//         active: 'Yes',
-//         // inactive: 'No'
-//     }
-// ];
 const { loadConfig, clientOrServerQuestion, logResultsQuestion, gitHubPrevURLQuestion, gitHubURLsQuestion, optionsCorruptQuestion } = commandPrompts
 
 const parseName = name => {
@@ -305,6 +211,7 @@ const prevOptionsCheck = async () => {
                 Options: { ...clientOrServerResponse, [Object.keys(logResultsRes)[0]]: logResultsRes[Object.keys(logResultsRes)[0]] }
             }
         }
+
         // Save Options File 
         if (Object.keys(optionsObj).length !== 0) {
             fs.writeFileSync(`${__dirname}` + "/config.json", JSON.stringify(optionsObj));
@@ -342,10 +249,6 @@ const prevOptionsCheck = async () => {
                         });
                     });
                 }
-
-
-
-
 
                 let cloneRes = green('➡️ ') + `Cloning ${user}/${repoName}`
                 let cloneCommand = await promise(gitCloneCommand, cloneRes, { shell: shell })

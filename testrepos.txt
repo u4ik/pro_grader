@@ -1,6 +1,0 @@
-https://github.com/darahdesigner/2Server-ChoreMe.git,
-https://github.com/AlaynaCarlin/BlueServer.git,
-https://github.com/coderap931/teamBluePern-Server.git,
-https://github.com/LA-Miller/ArtGallery-server.git,
-https://github.com/Dhowell714/ClickNCook-Server.git,
-https://github.com/gabrielleford/blueBadgeServer.git,
