@@ -30,8 +30,6 @@ TODO: - Add React TS Client
 TODO: - Add Additional server logic - check for dependency use bcryptjs, JWT_SECRET, admin, dotenv
 TODO: - Clone works??
 
-?           - 
-
 */
 
 const commandPrompts = {
@@ -43,6 +41,7 @@ const commandPrompts = {
             initial: true,
             active: 'Yes',
             inactive: 'No',
+
         }
     ],
     clientOrServerQuestion: [
@@ -162,7 +161,7 @@ const parseRepoArray = arr => {
 };
 
 const cloneReposQuestion = async (obj) => {
-    let recloneRepos = await (prompts(gitHubCloneRepoQuestion))
+    let recloneRepos = await (prompts(gitHubCloneRepoQuestion, { onCancel }))
     obj = { Options: { ...obj.Options, [Object.keys(recloneRepos)[0]]: recloneRepos.Reclone } }
     return obj.Options
 }
@@ -170,7 +169,7 @@ const cloneReposQuestion = async (obj) => {
 const loadRepos = async (optObj, loadedPrevOpt) => {
     if (optObj?.Repos?.length > 0) {
         console.log(optObj.Repos.map(i => i['URL']))
-        let loadPrevRepos = await (prompts(gitHubPrevURLQuestion))
+        let loadPrevRepos = await (prompts(gitHubPrevURLQuestion, { onCancel }))
         let repoObj;
         if (loadPrevRepos.LoadPrev) {
             if (loadedPrevOpt) {
@@ -185,7 +184,7 @@ const loadRepos = async (optObj, loadedPrevOpt) => {
 
             }
         } else {
-            tmp = await (prompts(gitHubURLsQuestion))
+            tmp = await (prompts(gitHubURLsQuestion, { onCancel }))
             repoObj = {
                 ...parseRepoArray(tmp.Repos),
                 Options: { ...optObj.Options }
@@ -201,7 +200,7 @@ const loadRepos = async (optObj, loadedPrevOpt) => {
         }
         return repoObj;
     }
-    tmp = await (prompts(gitHubURLsQuestion))
+    tmp = await (prompts(gitHubURLsQuestion, { onCancel }))
     let tmpClone = await cloneReposQuestion(optObj)
     repoObj = {
         ...parseRepoArray(tmp['Repos']),
@@ -210,6 +209,9 @@ const loadRepos = async (optObj, loadedPrevOpt) => {
     return repoObj;
 };
 
+const onCancel = prompt => {
+    process.exit();
+}
 const prevOptionsCheck = async () => {
     try {
         let tmpLoad = { LoadPrev: false }
@@ -217,7 +219,7 @@ const prevOptionsCheck = async () => {
         let prevOpts = JSON.parse(fs.readFileSync(`${__dirname}` + '/config.json', 'utf-8'))
         if (Object.keys(prevOpts.Options).length > 0) {
             console.log(prevOpts.Options)
-            tmpLoad = await (prompts(loadConfig))
+            tmpLoad = await (prompts(loadConfig, { onCancel }))
             let { LoadPrev } = tmpLoad
             return [LoadPrev, prevOpts]
         } else {
@@ -241,6 +243,7 @@ async function promise(cmd, resMsg, opts = {}) {
                 console.log({ stderr })
             } else if (stdout.length > 0) {
                 resolve(stdout)
+
             } else {
                 resolve(resMsg);
             }
@@ -260,6 +263,40 @@ const cloneReposCommand = async ({ user, userDir, URL, repoName }, shell, os) =>
     console.log(cloneCommand)
 }
 
+const configureOptions = async ({
+    gitHubURLs,
+    loadPrevOptions,
+    optionsObj,
+    prevOptions,
+}) => {
+    if (fs.existsSync(`${__dirname}` + '/config.json')) {
+        [loadPrevOptions, prevOptions] = await prevOptionsCheck();
+        optionsObj = prevOptions;
+    }
+    // Load Server / Client previous options or not
+    if (loadPrevOptions) {
+        // Load repos from options or not
+        gitHubURLs = await loadRepos(optionsObj, loadPrevOptions);
+        optionsObj = gitHubURLs
+    } else {
+        // Load repos from options or not
+        gitHubURLs = await loadRepos(optionsObj, loadPrevOptions);
+        const clientOrServerResponse = await (prompts(clientOrServerQuestion, { onCancel }))
+        let logResultsRes = await (prompts(logResultsQuestion, { onCancel }))
+        let selectedOptions = {
+            ...gitHubURLs.Options,
+            ...clientOrServerResponse,
+            [Object.keys(logResultsRes)[0]]: logResultsRes[Object.keys(logResultsRes)[0]],
+        }
+        optionsObj = {
+            Repos: gitHubURLs.Repos,
+            Options: { ...selectedOptions }
+        }
+    }
+    return optionsObj;
+
+}
+
 (async () => {
     try {
         let gitHubURLs, prevOptions = {}, optionsObj = {}, loadPrevOptions, os = process.platform
@@ -267,33 +304,41 @@ const cloneReposCommand = async ({ user, userDir, URL, repoName }, shell, os) =>
         if (os === 'win32') {
             exec(`git config core.ignorecase true`, '')
         }
+
+        const configOptions = {
+            gitHubURLs,
+            loadPrevOptions,
+            optionsObj,
+            prevOptions,
+        }
+
+        gitHubURLs = await configureOptions(configOptions)
+        optionsObj = gitHubURLs
         // If options file exists
-        if (fs.existsSync(`${__dirname}` + '/config.json')) {
-            [loadPrevOptions, prevOptions] = await prevOptionsCheck();
-            optionsObj = prevOptions;
-        }
-        // Load Server / Client previous options or not
-        if (loadPrevOptions) {
-            // Load repos from options or not
-            gitHubURLs = await loadRepos(optionsObj, loadPrevOptions);
-            optionsObj = gitHubURLs
-        } else {
-            // Load repos from options or not
-            gitHubURLs = await loadRepos(optionsObj, loadPrevOptions);
-            const clientOrServerResponse = await (prompts(clientOrServerQuestion))
-            let logResultsRes = await (prompts(logResultsQuestion))
-            let selectedOptions = {
-                ...gitHubURLs.Options,
-                ...clientOrServerResponse,
-                [Object.keys(logResultsRes)[0]]: logResultsRes[Object.keys(logResultsRes)[0]],
-            }
-            optionsObj = {
-                Repos: gitHubURLs.Repos,
-                Options: { ...selectedOptions }
-            }
-        }
-
-
+        // if (fs.existsSync(`${__dirname}` + '/config.json')) {
+        //     [loadPrevOptions, prevOptions] = await prevOptionsCheck();
+        //     optionsObj = prevOptions;
+        // }
+        // // Load Server / Client previous options or not
+        // if (loadPrevOptions) {
+        //     // Load repos from options or not
+        //     gitHubURLs = await loadRepos(optionsObj, loadPrevOptions);
+        //     optionsObj = gitHubURLs
+        // } else {
+        //     // Load repos from options or not
+        //     gitHubURLs = await loadRepos(optionsObj, loadPrevOptions);
+        //     const clientOrServerResponse = await (prompts(clientOrServerQuestion, { onCancel }))
+        //     let logResultsRes = await (prompts(logResultsQuestion, { onCancel }))
+        //     let selectedOptions = {
+        //         ...gitHubURLs.Options,
+        //         ...clientOrServerResponse,
+        //         [Object.keys(logResultsRes)[0]]: logResultsRes[Object.keys(logResultsRes)[0]],
+        //     }
+        //     optionsObj = {
+        //         Repos: gitHubURLs.Repos,
+        //         Options: { ...selectedOptions }
+        //     }
+        // }
 
         // Save Options File 
         if (Object.keys(optionsObj).length !== 0) {
@@ -317,11 +362,11 @@ const cloneReposCommand = async ({ user, userDir, URL, repoName }, shell, os) =>
                 }
 
                 // Clone Repos?
-                if (optionsObj.Options.Reclone && loadPrevOptions) {
+                if (optionsObj?.Options?.Reclone && loadPrevOptions) {
                     await cloneReposCommand(repoInfo, shell, os)
-                } else if (!optionsObj.Options.Reclone && !loadPrevOptions) {
+                } else if (!optionsObj?.Options?.Reclone && !loadPrevOptions) {
                     await cloneReposCommand(repoInfo, shell, os)
-                } else if (optionsObj.Options.Reclone) {
+                } else if (optionsObj?.Options?.Reclone) {
                     await cloneReposCommand(repoInfo, shell, os)
                 }
 
@@ -349,62 +394,73 @@ const cloneReposCommand = async ({ user, userDir, URL, repoName }, shell, os) =>
                         }
                     }
 
-                    endpoints.forEach((line) => {
-                        // Parse Data
-                        let fName = line.split('/')[1].split('.')[0].toLowerCase()
-                        let method = (line.split('/')[1].split('.')[2]).slice(0, -2).toUpperCase()
-                        let path = line.split("(")[1].split(',')[0].slice(1, -1)
+                    endpoints.forEach(async (line) => {
+                        try {
 
-                        let async = line.split("(")[1].split(',')[2] !== undefined ? true : false
-                        let validated = line.split("(")[1].split(',').length === 3 ? true : false
 
-                        let tmpOptionsObj = { async, validated }
+                            // Parse Data
+                            let fName = line.split('/')[1].split('.')[0].toLowerCase()
+                            let method = (line.split('/')[1].split('.')[2]).slice(0, -2).toUpperCase()
+                            let path = line.split("(")[1].split(',')[0].slice(1, -1)
+                            let filePath = "/" + line.split("/")[0] + "/" + line.split("/")[1].split(":")[0]
 
-                        // Endpoint Obj
-                        let resObj = {
-                            Path: path,
-                            Method: method,
-                        }
-                        if (optionsObj.Options.ServerOptions.length > 0) {
-                            optionsObj.Options.ServerOptions.forEach((i) => {
-                                for (y in i) {
-                                    if (!resObj[y] || resObj[y] === true) {
-                                        Object.keys(tmpOptionsObj).forEach(i => {
-                                            resObj[y] = tmpOptionsObj[i]
-                                        })
-                                        if (resObj[y]) {
-                                            break
+                            let async = line.split("(")[1].split(',')[2] !== undefined ? true : false
+                            let validated = line.split("(")[1].split(',').length === 3 ? true : false
+
+                            let tmpOptionsObj = { async, validated }
+
+
+                            // catCommand = await promise(`cat ${userDir + filePath}`, '', { shell: shell })
+                            // console.log(catCommand)
+
+
+                            // Endpoint Obj
+                            let resObj = {
+                                Path: path,
+                                Method: method,
+                            }
+                            if (optionsObj?.Options?.ServerOptions?.length > 0) {
+                                optionsObj?.Options?.ServerOptions.forEach((i) => {
+                                    for (y in i) {
+                                        if (!resObj[y] || resObj[y] === true) {
+                                            Object.keys(tmpOptionsObj).forEach(i => {
+                                                resObj[y] = tmpOptionsObj[i]
+                                            })
+                                            if (resObj[y]) {
+                                                break
+                                            }
                                         }
                                     }
-                                }
-                            })
+                                })
 
-                        }
-
-                        if (!results[user].Files[fName]) {
-                            results[user].Files[fName] = {
-                                Endpoints: [
-
-                                ]
                             }
+
+                            if (!results[user].Files[fName]) {
+                                results[user].Files[fName] = {
+                                    Endpoints: [
+
+                                    ]
+                                }
+                            }
+
+                            results[user].Files[fName].Endpoints.push(resObj)
+
+                            //Remove Dupes
+                            let tmp = results[user].Files[fName].Endpoints
+                            results[user].Files[fName].Endpoints = Array.from(new Set(tmp.map(JSON.stringify))).map((i) => JSON.parse(i));
+                            let cleaned = results[user].Files[fName].Endpoints
+
+                            // Build Final Results Obj
+                            results[user].Files[fName] = { NumOfEndpoints: cleaned.length, Endpoints: cleaned }
+                            results[user] = { Branches: branchObj, ...results[user] }
+                        } catch (err) {
+                            console.log({ err })
                         }
-
-                        results[user].Files[fName].Endpoints.push(resObj)
-
-                        //Remove Dupes
-                        let tmp = results[user].Files[fName].Endpoints
-                        results[user].Files[fName].Endpoints = Array.from(new Set(tmp.map(JSON.stringify))).map((i) => JSON.parse(i));
-                        let cleaned = results[user].Files[fName].Endpoints
-
-                        // Build Final Results Obj
-                        results[user].Files[fName] = { NumOfEndpoints: cleaned.length, Endpoints: cleaned }
-                        results[user] = { Branches: branchObj, ...results[user] }
-
                     });
 
                 };
                 if (Object.keys(results).length === gitHubURLs.Repos.length) {
-                    if (optionsObj.Options.LogResults) {
+                    if (optionsObj?.Options?.LogResults) {
                         console.dir(results, { depth: null });
                     }
                     fs.writeFileSync("./results.json", JSON.stringify(results));
