@@ -1,6 +1,6 @@
 {
     "name": "p_grader",
-    "version": "1.7.3",
+    "version": "1.7.2",
     "description": "A tool to log express endpoints",
     "main": "index.js",
     "scripts": {
