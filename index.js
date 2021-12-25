@@ -28,7 +28,7 @@ ___________TESTS_______________
 * [ ✔️ ] - Don't Load Prev Options + Don't Load Prev Repos + Log + Options
 
 TODO: - Add React TS Client
-TODO: - Add Additional server logic - check for dependency use
+TODO: - Add Additional server logic - check for dependency use bcryptjs, JWT_SECRET, admin, dotenv
 TODO: - Add toggle for cloning choice
 
 */
@@ -139,6 +139,7 @@ const parseUser = user => {
 const parseRepoArray = arr => {
     return {
         Repos: arr.map(r => {
+            console.log(r)
             if (r !== '' && r !== undefined) {
                 return { URL: r, Name: parseName(r), GitHubUser: parseUser(r) }
             }
@@ -151,8 +152,9 @@ const loadRepos = async (optObj) => {
         console.log(optObj.Repos.map(i => i['URL']))
         let loadPrevRepos = await (prompts(gitHubPrevURLQuestion))
         let repoObj;
-        if (loadPrevRepos.LoadPrev) repoObj = { Repos: optObj['Repos'] }
-        else {
+        if (loadPrevRepos.LoadPrev) {
+            repoObj = { Repos: optObj['Repos'] }
+        } else {
             tmp = await (prompts(gitHubURLsQuestion))
             repoObj = parseRepoArray(tmp.Repos)
         }
@@ -210,6 +212,8 @@ const prevOptionsCheck = async () => {
                 Options: { ...clientOrServerResponse, [Object.keys(logResultsRes)[0]]: logResultsRes[Object.keys(logResultsRes)[0]] }
             }
         }
+
+        console.log(gitHubURLs)
         // Save Options File 
         if (Object.keys(optionsObj).length !== 0) {
             fs.writeFileSync(`${__dirname}` + "/config.json", JSON.stringify(optionsObj));
@@ -247,10 +251,6 @@ const prevOptionsCheck = async () => {
                         });
                     });
                 }
-
-
-
-
 
                 let cloneRes = green('➡️ ') + `Cloning ${user}/${repoName}`
                 let cloneCommand = await promise(gitCloneCommand, cloneRes, { shell: shell })
