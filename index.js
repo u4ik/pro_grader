@@ -6,7 +6,6 @@ const { spawn, exec } = require('child_process')
 const fs = require('fs');
 const hyperlinker = require('hyperlinker');
 
-
 /*
 ___________TESTS_______________
 *______FROM  (NO REPOS)
@@ -29,7 +28,9 @@ ___________TESTS_______________
 
 TODO: - Add React TS Client
 TODO: - Add Additional server logic - check for dependency use bcryptjs, JWT_SECRET, admin, dotenv
-TODO: - Add toggle for cloning choice
+TODO: - Clone works??
+
+?           - 
 
 */
 
@@ -38,7 +39,7 @@ const commandPrompts = {
         {
             type: 'toggle',
             name: 'LoadPrev',
-            message: 'Previous options config found (options.json). Load it?',
+            message: 'Previous options config found (config.json). Load it?',
             initial: true,
             active: 'Yes',
             inactive: 'No',
@@ -160,13 +161,9 @@ const parseRepoArray = arr => {
     }
 };
 
-const cloneRepos = async (obj) => {
-
+const cloneReposQuestion = async (obj) => {
     let recloneRepos = await (prompts(gitHubCloneRepoQuestion))
-
     obj = { Options: { ...obj.Options, [Object.keys(recloneRepos)[0]]: recloneRepos.Reclone } }
-
-
     return obj.Options
 }
 
@@ -181,8 +178,7 @@ const loadRepos = async (optObj, loadedPrevOpt) => {
                     Repos: optObj['Repos'], Options: { ...optObj.Options }
                 }
             } else {
-                let tmp = await cloneRepos(optObj)
-                console.log(tmp)
+                let tmp = await cloneReposQuestion(optObj)
                 repoObj = {
                     Repos: optObj['Repos'], Options: { ...optObj.Options, ...tmp }
                 }
@@ -190,20 +186,28 @@ const loadRepos = async (optObj, loadedPrevOpt) => {
             }
         } else {
             tmp = await (prompts(gitHubURLsQuestion))
-            repoObj = parseRepoArray(tmp.Repos)
+            repoObj = {
+                ...parseRepoArray(tmp.Repos),
+                Options: { ...optObj.Options }
+            }
+            if (!loadedPrevOpt) {
+                let tmp = await cloneReposQuestion(optObj)
+
+                repoObj = {
+                    ...repoObj,
+                    Options: { ...optObj.Options, ...tmp }
+                }
+            }
         }
         return repoObj;
     }
-
     tmp = await (prompts(gitHubURLsQuestion))
-    let tmpClone = await cloneRepos(optObj)
+    let tmpClone = await cloneReposQuestion(optObj)
     repoObj = {
         ...parseRepoArray(tmp['Repos']),
         Options: { ...tmpClone }
     }
-
     return repoObj;
-
 };
 
 const prevOptionsCheck = async () => {
@@ -244,6 +248,18 @@ async function promise(cmd, resMsg, opts = {}) {
     });
 };
 
+const cloneReposCommand = async ({ user, userDir, URL, repoName }, shell, os) => {
+    let gitCloneCommand = fs.existsSync(userDir)
+        ?
+        `${os === 'win32' ? 'del' : 'rm'} ${userDir} -Force -Recurse && git clone  ${URL} ${userDir} --quiet`
+        :
+        `git clone ${URL} ${userDir} --quiet`
+
+    let cloneRes = green('➡️ ') + `Cloning ${user}/${repoName}`
+    let cloneCommand = await promise(gitCloneCommand, cloneRes, { shell: shell })
+    console.log(cloneCommand)
+}
+
 (async () => {
     try {
         let gitHubURLs, prevOptions = {}, optionsObj = {}, loadPrevOptions, os = process.platform
@@ -260,31 +276,27 @@ async function promise(cmd, resMsg, opts = {}) {
         if (loadPrevOptions) {
             // Load repos from options or not
             gitHubURLs = await loadRepos(optionsObj, loadPrevOptions);
-
             optionsObj = gitHubURLs
-
         } else {
             // Load repos from options or not
             gitHubURLs = await loadRepos(optionsObj, loadPrevOptions);
-
             const clientOrServerResponse = await (prompts(clientOrServerQuestion))
             let logResultsRes = await (prompts(logResultsQuestion))
-
             let selectedOptions = {
+                ...gitHubURLs.Options,
                 ...clientOrServerResponse,
                 [Object.keys(logResultsRes)[0]]: logResultsRes[Object.keys(logResultsRes)[0]],
-                ...gitHubURLs.Options
             }
-
             optionsObj = {
                 Repos: gitHubURLs.Repos,
                 Options: { ...selectedOptions }
             }
         }
 
+
+
         // Save Options File 
         if (Object.keys(optionsObj).length !== 0) {
-            console.log(optionsObj)
             fs.writeFileSync(`${__dirname}` + "/config.json", JSON.stringify(optionsObj));
             console.log(green('√ ') + `Config Saved As: ${hyperlinker(green('config.json'), __dirname + '/config.json')}`)
         }
@@ -297,29 +309,20 @@ async function promise(cmd, resMsg, opts = {}) {
                 let userDir = `${__dirname}/repos/${user}`
                 let repoName = Name;
 
+                let repoInfo = {
+                    user,
+                    userDir,
+                    URL,
+                    repoName
+                }
+
+                // Clone Repos?
                 if (optionsObj.Options.Reclone && loadPrevOptions) {
-
-                    // Clone down repos
-                    let gitCloneCommand = fs.existsSync(userDir)
-                        ?
-                        `${os === 'win32' ? 'del' : 'rm'} ${userDir} -Force -Recurse && git clone  ${URL} ${userDir} --quiet`
-                        :
-                        `git clone ${URL} ${userDir} --quiet`
-
-                    let cloneRes = green('➡️ ') + `Cloning ${user}/${repoName}`
-                    let cloneCommand = await promise(gitCloneCommand, cloneRes, { shell: shell })
-                    console.log(cloneCommand)
+                    await cloneReposCommand(repoInfo, shell, os)
                 } else if (!optionsObj.Options.Reclone && !loadPrevOptions) {
-
-                    let gitCloneCommand = fs.existsSync(userDir)
-                        ?
-                        `${os === 'win32' ? 'del' : 'rm'} ${userDir} -Force -Recurse && git clone  ${URL} ${userDir} --quiet`
-                        :
-                        `git clone ${URL} ${userDir} --quiet`
-
-                    let cloneRes = green('➡️ ') + `Cloning ${user}/${repoName}`
-                    let cloneCommand = await promise(gitCloneCommand, cloneRes, { shell: shell })
-                    console.log(cloneCommand)
+                    await cloneReposCommand(repoInfo, shell, os)
+                } else if (optionsObj.Options.Reclone) {
+                    await cloneReposCommand(repoInfo, shell, os)
                 }
 
                 // If directory exists/after clone, run commands -> commitCount/grep/Bcrypt
