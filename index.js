@@ -209,7 +209,7 @@ const loadRepos = async (optObj, loadedPrevOpt) => {
     return repoObj;
 };
 
-const onCancel = prompt => {
+const onCancel = () => {
     process.exit();
 }
 const prevOptionsCheck = async () => {
@@ -243,7 +243,6 @@ async function promise(cmd, resMsg, opts = {}) {
                 console.log({ stderr })
             } else if (stdout.length > 0) {
                 resolve(stdout)
-
             } else {
                 resolve(resMsg);
             }
@@ -265,7 +264,7 @@ const cloneReposCommand = async ({ user, userDir, URL, repoName }, shell, os) =>
 
 const configureOptions = async ({
     gitHubURLs,
-    loadPrevOptions,
+    // loadPrevOptions,
     optionsObj,
     prevOptions,
 }) => {
@@ -294,12 +293,50 @@ const configureOptions = async ({
         }
     }
     return optionsObj;
+}
 
+const cloneRepos = async ({ optionsObj, repoInfo, shell, os, loadPrevOptions }) => {
+    if (optionsObj?.Options?.Reclone && loadPrevOptions) {
+        await cloneReposCommand(repoInfo, shell, os)
+    } else if (!optionsObj?.Options?.Reclone && !loadPrevOptions) {
+        await cloneReposCommand(repoInfo, shell, os)
+    } else if (optionsObj?.Options?.Reclone) {
+        await cloneReposCommand(repoInfo, shell, os)
+    }
+}
+
+const commitsCommand = async ({ branchObj, os, userDir }) => {
+    let tty = os === 'win32' ? 'CON' : '/dev/tty';
+    let commitCommandStr = 'git shortlog -sn < ' + tty
+    let commitOpts = { cwd: `${userDir}` }
+    let commitCommand = await promise(commitCommandStr, '', commitOpts)
+
+    let commitArr = commitCommand.split("\n").map(i => i.split("\t")).filter(i => i[0] !== '').map(i => [i[0].replace(/\s/g, ''), i[1]])
+    commitArr.map(i => {
+        branchObj[i[1]] = i[0] + ' commits'
+    })
+}
+
+const grepCommand = async ({ userDir }) => {
+    let grepCommandStr = `cd ${userDir} && git grep -r "router" ":!*.json" ":!*.md"`
+    grepCommandRes = await promise(grepCommandStr, '')
+    return grepCommandRes.split('\n').filter(i => i[0] === 'c').filter(i => !i.includes('//')).filter(i => i.includes('router.'));
+}
+
+const saveResults = ({ results, optionsObj }) => {
+    if (Object.keys(results).length === optionsObj.Repos.length) {
+        if (optionsObj?.Options?.LogResults) {
+            console.dir(results, { depth: null });
+        }
+        fs.writeFileSync("./results.json", JSON.stringify(results));
+        console.log(green('√ ') + `Results Saved As: ${hyperlinker(green('results.json'), __dirname + '/results.json')}`)
+
+    }
 }
 
 (async () => {
     try {
-        let gitHubURLs, prevOptions = {}, optionsObj = {}, loadPrevOptions, os = process.platform
+        let gitHubURLs, prevOptions = {}, optionsObj = {}, os = process.platform
         let shell = os === 'win32' ? 'pwsh.exe' : true
         if (os === 'win32') {
             exec(`git config core.ignorecase true`, '')
@@ -307,40 +344,20 @@ const configureOptions = async ({
 
         const configOptions = {
             gitHubURLs,
-            loadPrevOptions,
+            // loadPrevOptions,
             optionsObj,
             prevOptions,
         }
-
+        //*********************************** 
+        //? CHECK PREVIOUS CONFIG
+        //*********************************** 
         gitHubURLs = await configureOptions(configOptions)
         optionsObj = gitHubURLs
-        // If options file exists
-        // if (fs.existsSync(`${__dirname}` + '/config.json')) {
-        //     [loadPrevOptions, prevOptions] = await prevOptionsCheck();
-        //     optionsObj = prevOptions;
-        // }
-        // // Load Server / Client previous options or not
-        // if (loadPrevOptions) {
-        //     // Load repos from options or not
-        //     gitHubURLs = await loadRepos(optionsObj, loadPrevOptions);
-        //     optionsObj = gitHubURLs
-        // } else {
-        //     // Load repos from options or not
-        //     gitHubURLs = await loadRepos(optionsObj, loadPrevOptions);
-        //     const clientOrServerResponse = await (prompts(clientOrServerQuestion, { onCancel }))
-        //     let logResultsRes = await (prompts(logResultsQuestion, { onCancel }))
-        //     let selectedOptions = {
-        //         ...gitHubURLs.Options,
-        //         ...clientOrServerResponse,
-        //         [Object.keys(logResultsRes)[0]]: logResultsRes[Object.keys(logResultsRes)[0]],
-        //     }
-        //     optionsObj = {
-        //         Repos: gitHubURLs.Repos,
-        //         Options: { ...selectedOptions }
-        //     }
-        // }
 
-        // Save Options File 
+
+        //*********************************** 
+        //? SAVE CONFIG FILE
+        //*********************************** 
         if (Object.keys(optionsObj).length !== 0) {
             fs.writeFileSync(`${__dirname}` + "/config.json", JSON.stringify(optionsObj));
             console.log(green('√ ') + `Config Saved As: ${hyperlinker(green('config.json'), __dirname + '/config.json')}`)
@@ -348,7 +365,7 @@ const configureOptions = async ({
 
         let results = {}
 
-        gitHubURLs.Repos.forEach(async ({ URL, Name, GitHubUser }) => {
+        optionsObj.Repos.forEach(async ({ URL, Name, GitHubUser }) => {
             try {
                 let user = GitHubUser;
                 let userDir = `${__dirname}/repos/${user}`
@@ -361,32 +378,39 @@ const configureOptions = async ({
                     repoName
                 }
 
-                // Clone Repos?
-                if (optionsObj?.Options?.Reclone && loadPrevOptions) {
-                    await cloneReposCommand(repoInfo, shell, os)
-                } else if (!optionsObj?.Options?.Reclone && !loadPrevOptions) {
-                    await cloneReposCommand(repoInfo, shell, os)
-                } else if (optionsObj?.Options?.Reclone) {
-                    await cloneReposCommand(repoInfo, shell, os)
+                let cloneCommandObj = {
+                    repoInfo,
+                    loadPrevOptions,
+                    optionsObj,
+                    shell,
+                    os
                 }
+
+                //*********************************** 
+                //? CLONE REPOS
+                //*********************************** 
+                await cloneRepos(cloneCommandObj)
 
                 // If directory exists/after clone, run commands -> commitCount/grep/Bcrypt
                 if (fs.existsSync(`${userDir}`)) {
-                    let tty = os === 'win32' ? 'CON' : '/dev/tty';
-                    let commitCommandStr = 'git shortlog -sn < ' + tty
-                    let commitOpts = { cwd: `${userDir}` }
+
+                    //*********************************** 
+                    //? GIT BRANCH COMMITS
+                    //*********************************** 
                     let branchObj = {}
-                    let commitCommand = await promise(commitCommandStr, '', commitOpts)
+                    await commitsCommand({ branchObj, os, userDir })
 
-                    let commitArr = commitCommand.split("\n").map(i => i.split("\t")).filter(i => i[0] !== '').map(i => [i[0].replace(/\s/g, ''), i[1]])
-                    commitArr.map(i => {
-                        branchObj[i[1]] = i[0] + ' commits'
-                    })
+                    //*********************************** 
+                    //? GREP EXPRESS ROUTER ENDPOINTS
+                    //*********************************** 
+                    let endpoints = await grepCommand({ userDir });
 
-                    let grepCommandStr = `cd ${userDir} && git grep -r "router" ":!*.json" ":!*.md"`
-                    grepCommand = await promise(grepCommandStr, '')
 
-                    let endpoints = grepCommand.split('\n').filter(i => i[0] === 'c').filter(i => !i.includes('//')).filter(i => i.includes('router.'))
+
+                    let bcryptCommandStr = `cd ${userDir} && git grep -r "bcrypt" ":!*.json" ":!*.md"`
+                    bcryptCommandRes = await promise(bcryptCommandStr, '')
+
+                    console.log(bcryptCommandRes);
 
                     if (!results[parseUser(URL)]) {
                         results[parseUser(URL)] = {
@@ -408,6 +432,8 @@ const configureOptions = async ({
                             let validated = line.split("(")[1].split(',').length === 3 ? true : false
 
                             let tmpOptionsObj = { async, validated }
+
+                            // console.log(filePath);
 
 
                             // catCommand = await promise(`cat ${userDir + filePath}`, '', { shell: shell })
@@ -459,19 +485,16 @@ const configureOptions = async ({
                     });
 
                 };
-                if (Object.keys(results).length === gitHubURLs.Repos.length) {
-                    if (optionsObj?.Options?.LogResults) {
-                        console.dir(results, { depth: null });
-                    }
-                    fs.writeFileSync("./results.json", JSON.stringify(results));
-                    console.log(green('√ ') + `Results Saved As: ${hyperlinker(green('results.json'), __dirname + '/results.json')}`)
 
-                }
+                //*********************************** 
+                //? SAVE RESULTS FILE
+                //*********************************** 
+                saveResults({ results, optionsObj });
+
             } catch (err) {
                 console.log({ err });
             };
         });
-
     } catch (err) {
         console.log({ err });
     };
