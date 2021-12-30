@@ -303,20 +303,8 @@ const promise = async (cmd, resMsg, opts = {}, userDir = '') => {
             } else if (stderr) {
                 console.log({ stderr })
                 if (stderr.includes('collided')) {
-                    let x = exec(`cd ${userDir} && git config core.ignorecase true`, (errer, stdout, stderr) => {
-                        if (error) {
-                            reject();
-                            console.log(error);
-                        } else if (stderr) {
-                            console.log({ stderr })
-                        } else if (stdout) {
-                            console.log(stdout);
-                            resolve(stdout)
-                        } else {
-                            resolve(resMsg);
-                        }
-                    })
-
+                    let x = await promise(`cd ${userDir} && git config core.ignorecase true`, '')
+                    console.log(x);
 
                 }
 
