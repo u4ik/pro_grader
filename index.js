@@ -294,7 +294,8 @@ const prevOptionsCheck = async () => {
     };
 };
 
-const promise1 = async (cmd, resMsg, opts = {}, userDir = '') => {
+
+const promise = async (cmd, resMsg, opts = {}, userDir = '') => {
     return new Promise((resolve, reject) => {
         exec(cmd, { ...opts }, (error, stdout, stderr) => {
             if (error) {
@@ -302,25 +303,9 @@ const promise1 = async (cmd, resMsg, opts = {}, userDir = '') => {
                 reject();
             } else if (stderr) {
                 console.log({ stderr })
-            } else if (stdout.length > 0) {
-                resolve(stdout)
-            } else {
-                resolve(resMsg);
-            }
-        });
-    });
-};
-const promise = async (cmd, resMsg, opts = {}, userDir = '') => {
-    return new Promise((resolve, reject) => {
-        exec(cmd, { ...opts }, async (error, stdout, stderr) => {
-            if (error) {
-                console.log({ error })
-                reject();
-            } else if (stderr) {
-                console.log({ stderr })
                 if (stderr.includes('collided')) {
-                    let x = await promise1(`cd ${userDir} && git config core.ignorecase true`, '')
-                    console.log(x);
+                    // let x = await promise1(`cd ${userDir} && git config core.ignorecase true`, '')
+                    // console.log(x);
 
                 }
 
@@ -336,7 +321,7 @@ const promise = async (cmd, resMsg, opts = {}, userDir = '') => {
 const cloneReposCommand = async ({ user, userDir, URL, repoName }, shell, os) => {
     let gitCloneCommand = fs.existsSync(userDir)
         ?
-        `${os === 'win32' ? 'del' : 'rm'} ${userDir} -Force -Recurse  && git config core.ignorecase true --replace-all && git clone ${URL} ${userDir} --quiet`
+        `${os === 'win32' ? 'del' : 'rm'} ${userDir} -Force -Recurse  && git clone ${URL} ${userDir} --quiet`
         :
         `git clone ${URL} ${userDir} --quiet`
 
