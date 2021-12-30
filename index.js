@@ -315,7 +315,7 @@ const promise = async (cmd, resMsg, opts = {}) => {
 const cloneReposCommand = async ({ user, userDir, URL, repoName }, shell, os) => {
     let gitCloneCommand = fs.existsSync(userDir)
         ?
-        `${os === 'win32' ? 'del' : 'rm'} ${userDir} -Force -Recurse && git clone  ${URL} ${userDir} --quiet`
+        `${os === 'win32' ? 'del' : 'rm'} ${userDir} -Force -Recurse && git config core.ignorecase true && git clone ${URL} ${userDir} --quiet`
         :
         `git clone ${URL} ${userDir} --quiet`
 
@@ -565,9 +565,7 @@ const menuSelectionActions = async (os, shell) => {
 
         let prevOptions = {}, optionsObj = {}, os = process.platform, loadPrevOptions = false
         let shell = os === 'win32' ? 'pwsh.exe' : true
-        if (os === 'win32') {
-            let caseSense = await promise(`cd ${__dirname + '&& git init && git config core.ignorecase true --add'} `, '', { shell: shell })
-        }
+
 
         CFonts.say('Pro_Grader', {
             font: 'tiny',              // define the font face
