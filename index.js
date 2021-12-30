@@ -315,7 +315,7 @@ const promise = async (cmd, resMsg, opts = {}) => {
 const cloneReposCommand = async ({ user, userDir, URL, repoName }, shell, os) => {
     let gitCloneCommand = fs.existsSync(userDir)
         ?
-        `${os === 'win32' ? 'del' : 'rm'} ${userDir} -Force -Recurse && git config core.ignorecase true && git clone ${URL} ${userDir} --quiet`
+        `${os === 'win32' ? 'del' : 'rm'} ${userDir} -Force -Recurse && cd ${userDir} && git config core.ignorecase true && git clone ${URL} ${userDir} --quiet`
         :
         `git clone ${URL} ${userDir} --quiet`
 
