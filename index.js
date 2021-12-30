@@ -294,7 +294,7 @@ const prevOptionsCheck = async () => {
     };
 };
 
-const promise = async (cmd, resMsg, opts = {}) => {
+const promise = async (cmd, resMsg, opts = {}, userDir = '') => {
     return new Promise((resolve, reject) => {
         exec(cmd, { ...opts }, (error, stdout, stderr) => {
             if (error) {
@@ -302,7 +302,10 @@ const promise = async (cmd, resMsg, opts = {}) => {
                 reject();
             } else if (stderr) {
                 console.log({ stderr })
-                console.log(stderr.includes('collided'))
+                if (stderr.includes('collided')) {
+                    let x = exec(`cd ${userDir} && git config core.ignorecase true`)
+                    console.log(x);
+                }
 
             } else if (stdout.length > 0) {
                 resolve(stdout)
@@ -321,7 +324,7 @@ const cloneReposCommand = async ({ user, userDir, URL, repoName }, shell, os) =>
         `git clone ${URL} ${userDir} --quiet`
 
     let cloneRes = green('➡️ ') + `Cloning ${user}/${repoName}`
-    let cloneCommand = await promise(gitCloneCommand, cloneRes, { shell: shell })
+    let cloneCommand = await promise(gitCloneCommand, cloneRes, { shell: shell }, userDir)
     console.log(cloneCommand)
 }
 
