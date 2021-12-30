@@ -1,10 +1,22 @@
 #!/usr/bin/env node
-const prompts = require('prompts');
-const path = require('path');
-const { green } = require('kleur');
-const { spawn, exec } = require('child_process')
-const fs = require('fs');
-const hyperlinker = require('hyperlinker');
+import dotenvpkg from 'dotenv'
+dotenvpkg.config();
+import prompts from 'prompts';
+import path from 'path';
+import pkg from 'kleur';
+const { green } = pkg
+import { spawn, exec } from 'child_process'
+import fs from 'fs';
+import hyperlinker from 'hyperlinker';
+import { deepStrictEqual } from 'assert';
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+import CFonts from 'cfonts';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+import axios from 'axios';
+
 
 /*
 ___________TESTS_______________
@@ -32,7 +44,51 @@ TODO: - Clone works??
 
 */
 
+
 const commandPrompts = {
+    mainMenu: [{
+        type: 'select',
+        name: 'MenuSelection',
+        message: 'Choose an option',
+        choices: [
+            { title: '➡️ Start', description: 'Start Pro_Grader', value: 'Start' },
+            { title: 'ℹ️ About', description: 'About Pro_Grader', value: 'About' },
+            { title: '🪲 Report A Bug', description: 'Send me a message about a bug/issue', value: 'Report' },
+            { title: '❌ Empty Repos Folder', description: 'Clear out the repo files stored in app dir', value: 'EmptyRepos' },
+            { title: '❌ Delete Config File', description: 'Delete the generated config file, this can be useful to fix any config issues', value: 'DelConfig' },
+        ].filter(i => {
+
+            if (!fs.existsSync(`${__dirname}` + "/config.json")) {
+                return i.title !== 'Delete Config File'
+            } else {
+                return i
+            }
+        }).filter(i => {
+            if (fs.readdirSync(`${__dirname}/repos`).length <= 1) {
+                return i.title !== 'Empty Repos Folder'
+            } else {
+                return i
+            }
+        }),
+        initial: 0,
+    }],
+    reportBug: [
+
+        {
+            type: 'text',
+            name: 'EmailValue',
+            message: `Input your email to receive a response`,
+            validate: val => /^([-!# - '*+/-9=?A-Z^-~]+(\.[-!#-' * +/-9=?A-Z^-~]+)*|"([]!#-[^-~ \t]|(\\[\t -~]))+")@[0-9A-Za-z]([0-9A-Za-z-]{0,61}[0-9A-Za-z])?(\.[0-9A-Za-z]([0-9A-Za-z-]{0,61}[0-9A-Za-z])?)+$/.test(val) !== true ? 'Please enter a valid email address' : true
+        },
+        {
+
+            type: 'text',
+            name: 'BugValue',
+            message: `List the bug or issue`,
+
+
+        }
+    ],
     loadConfig: [
         {
             type: 'toggle',
@@ -74,7 +130,7 @@ const commandPrompts = {
             message: 'Server Options',
             choices: [
 
-                { title: 'Validated', value: { TokenVal: true }, description: 'Check for token on endpoint ', selected: true },
+                { title: 'Validated', value: { Validated: true }, description: 'Check for token on endpoint ', selected: true },
                 { title: 'Async', value: { Async: true }, description: 'Show if endpoint is async', selected: true },
                 { title: 'Bcrypt', value: { Bcrypt: true }, description: 'Is Bcrypt used in Auth Signup/Login?', selected: true },
 
@@ -140,7 +196,7 @@ const commandPrompts = {
     ]
 }
 
-const { loadConfig, clientOrServerQuestion, logResultsQuestion, gitHubPrevURLQuestion, gitHubCloneRepoQuestion, gitHubURLsQuestion, optionsCorruptQuestion } = commandPrompts
+const { loadConfig, clientOrServerQuestion, logResultsQuestion, gitHubPrevURLQuestion, gitHubCloneRepoQuestion, gitHubURLsQuestion, optionsCorruptQuestion, reportBug, mainMenu } = commandPrompts
 
 const parseName = name => {
     return name.split('/')[4].split('.')[0]
@@ -263,11 +319,11 @@ const cloneReposCommand = async ({ user, userDir, URL, repoName }, shell, os) =>
 }
 
 const configureOptions = async ({
-    gitHubURLs,
-    // loadPrevOptions,
     optionsObj,
     prevOptions,
 }) => {
+    let gitHubURLs;
+    let loadPrevOptions;
     if (fs.existsSync(`${__dirname}` + '/config.json')) {
         [loadPrevOptions, prevOptions] = await prevOptionsCheck();
         optionsObj = prevOptions;
@@ -292,15 +348,17 @@ const configureOptions = async ({
             Options: { ...selectedOptions }
         }
     }
-    return optionsObj;
+    return [optionsObj, loadPrevOptions];
 }
 
-const cloneRepos = async ({ optionsObj, repoInfo, shell, os, loadPrevOptions }) => {
-    if (optionsObj?.Options?.Reclone && loadPrevOptions) {
+const cloneRepos = async ({ optionsObj, repoInfo, shell, os, loadPrevOpts }) => {
+    if (optionsObj?.Options?.Reclone && loadPrevOpts) {
         await cloneReposCommand(repoInfo, shell, os)
-    } else if (!optionsObj?.Options?.Reclone && !loadPrevOptions) {
+    } else if (!optionsObj?.Options?.Reclone && !loadPrevOpts) {
         await cloneReposCommand(repoInfo, shell, os)
     } else if (optionsObj?.Options?.Reclone) {
+        await cloneReposCommand(repoInfo, shell, os)
+    } else if (fs.readdirSync(`${__dirname}/repos`).length <= 1) {
         await cloneReposCommand(repoInfo, shell, os)
     }
 }
@@ -318,8 +376,9 @@ const commitsCommand = async ({ branchObj, os, userDir }) => {
 }
 
 const grepCommand = async ({ userDir }) => {
-    let grepCommandStr = `cd ${userDir} && git grep -r "router" ":!*.json" ":!*.md"`
-    grepCommandRes = await promise(grepCommandStr, '')
+    let grepCommandStr = `cd ${userDir} && git grep -r -n "router" ":!*.json" ":!*.md"`
+    let grepCommandRes = await promise(grepCommandStr, '')
+
     return grepCommandRes.split('\n').filter(i => i[0] === 'c').filter(i => !i.includes('//')).filter(i => i.includes('router.'));
 }
 
@@ -328,173 +387,265 @@ const saveResults = ({ results, optionsObj }) => {
         if (optionsObj?.Options?.LogResults) {
             console.dir(results, { depth: null });
         }
-        fs.writeFileSync("./results.json", JSON.stringify(results));
-        console.log(green('√ ') + `Results Saved As: ${hyperlinker(green('results.json'), __dirname + '/results.json')}`)
+        fs.writeFileSync(`${__dirname}/results_${optionsObj.Options.Selection.toLowerCase()}.json`, JSON.stringify(results));
+        console.log(green('√ ') + `Results Saved As: ${hyperlinker(green(`results_${optionsObj.Options.Selection.toLowerCase()}.json`), __dirname + `/results_${optionsObj.Options.Selection.toLowerCase()}.json`)}`)
 
     }
 }
 
+const serverCommands = async ({ userDir, user, URL }, results, optionsObj, branchObj) => {
+    //*********************************** 
+    //? GREP EXPRESS ROUTER ENDPOINTS
+    //*********************************** 
+    let endpoints = await grepCommand({ userDir }, results);
+
+    //*********************************** 
+    //? GREP BCRYPT
+    //*********************************** 
+    let bcryptCommandStr = `cd ${userDir} && git grep -r -n "bcrypt" ":!*.json" ":!*.md"`
+    let bcryptCommandRes = await promise(bcryptCommandStr, '')
+
+    let [bcrypt1, bcrypt2] = bcryptCommandRes.split(" ").filter(i => i !== '').filter(i => i.includes('bcrypt.hash') || i.includes('bcrypt.compare'));
+
+    let fileName = bcryptCommandRes.split(" ").filter(i => i !== '').filter(i => i.includes('controllers')).join('').split('/')[1].split('.')[0].toLowerCase()
+
+    let obj = {
+        FileName: fileName,
+        Bcrypt: bcrypt1 && bcrypt2 ? true : false
+    }
+
+    if (!results[parseUser(URL)]) {
+        results[parseUser(URL)] = {
+            Files: {}
+        }
+    }
+
+    endpoints.forEach(async (line) => {
+
+        try {
+
+            // Parse Data
+            let fName = line.split('/')[1].split('.')[0].toLowerCase()
+
+            let method = (line.split('/')[1].split('.')[2]).slice(0, -2).toUpperCase()
+            let path = line.split("(")[1].split(',')[0].slice(1, -1)
+            let filePath = "/" + line.split("/")[0] + "/" + line.split("/")[1].split(":")[0]
+            let Async = line.split("(")[1].split(',').filter(i => i.replace(/\s/g, '')).includes(' async ')
+            // let Async = line.split("(")[1].split(',')[2] !== undefined ? true : false
+            let Validated = line.split("(")[1].split(',').length === 3 ? true : false
+            let Bcrypt = fName === obj.FileName && obj.Bcrypt && path === '/register' || path === '/login' ? true : false;
+
+            // console.log(line.split("(")[1].split(','));
+            // console.log(validated);
+
+            let tmpOptionsObj = { Validated, Async, Bcrypt }
+
+            Object.keys(tmpOptionsObj).forEach(i => {
+                if (!tmpOptionsObj[i]) {
+                    delete tmpOptionsObj[i]
+                }
+            })
+
+            // catCommand = await promise(`cat ${userDir + filePath}`, '', { shell: shell })
+            // console.log(catCommand)
+
+            let resObj = {
+                Path: path,
+                Method: method,
+            }
+            if (optionsObj.Options.ServerOptions.length > 0) {
+                optionsObj.Options.ServerOptions.forEach((i) => {
+                    for (let y in i) {
+                        if (!resObj[y] || resObj[y] === true) {
+                            Object.keys(tmpOptionsObj).forEach(i => {
+                                if (i === y) {
+                                    resObj[y] = tmpOptionsObj[i]
+                                }
+                            })
+                            if (resObj[y]) {
+                                break
+                            }
+                        }
+                    }
+                })
+
+            }
+
+
+            if (!results[user].Files[fName]) {
+                results[user].Files[fName] = {
+                    Endpoints: [
+
+                    ]
+                }
+            }
+
+            results[user].Files[fName].Endpoints.push(resObj)
+
+            //Remove Dupes
+            let tmp = results[user].Files[fName].Endpoints
+            results[user].Files[fName].Endpoints = Array.from(new Set(tmp.map(JSON.stringify))).map((i) => JSON.parse(i));
+            let cleaned = results[user].Files[fName].Endpoints
+
+            // Build Final Results Obj
+            results[user].Files[fName] = { NumOfEndpoints: cleaned.length, Endpoints: cleaned }
+            results[user] = { Branches: branchObj, ...results[user] }
+        } catch (err) {
+            console.log({ err })
+        }
+    });
+}
+
+const reportBugFetch = async () => {
+    let reportBugRes = await (prompts(reportBug, { onCancel }))
+
+    const { BugValue, EmailValue } = reportBugRes;
+
+    axios({
+        url: `https://formspree.io/f/${process.env.FORM_ID}`,
+        method: 'post',
+        headers: {
+            'Accept': 'application/json'
+        },
+        data: {
+            email: EmailValue,
+            message: BugValue
+        }
+    }).then((response) => {
+        console.log(green('√ ') + 'Sent Successfully');
+    }).catch(err => {
+        console.log(err);
+    })
+}
+
+const menuSelectionActions = async () => {
+    let menuSelectionRes = await (prompts(mainMenu, { onCancel }))
+
+    const { MenuSelection } = menuSelectionRes;
+
+    if (MenuSelection === 'EmptyRepos') {
+        const emptyReposCommand = `${os === 'win32' ? 'del' : 'rm'} ${__dirname}/repos/ * -Force - Recurse - Exclude *.gitkeep * `
+        let emptyReposFolder = await promise(emptyReposCommand, 'Cleared Repos Folder', { shell: shell })
+        console.log(green('√ ') + emptyReposFolder);
+    }
+
+    if (MenuSelection === 'DelConfig') {
+        const delConfigCommand = `${os === 'win32' ? 'del' : 'rm'} ${__dirname} /config.json -Force `
+        let delConfig = await promise(delConfigCommand, 'Config Deleted', { shell: shell })
+        console.log(green('√ ') + delConfig);
+    }
+
+    if (MenuSelection === 'Report') {
+        await reportBugFetch()
+    }
+
+
+
+    return MenuSelection
+}
+
+//*********************************** 
+//? MAIN INITIATION
+//*********************************** 
 (async () => {
     try {
-        let gitHubURLs, prevOptions = {}, optionsObj = {}, os = process.platform
+
+        let prevOptions = {}, optionsObj = {}, os = process.platform, loadPrevOptions = false
         let shell = os === 'win32' ? 'pwsh.exe' : true
         if (os === 'win32') {
             exec(`git config core.ignorecase true`, '')
         }
 
-        const configOptions = {
-            gitHubURLs,
-            // loadPrevOptions,
-            optionsObj,
-            prevOptions,
-        }
-        //*********************************** 
-        //? CHECK PREVIOUS CONFIG
-        //*********************************** 
-        gitHubURLs = await configureOptions(configOptions)
-        optionsObj = gitHubURLs
-
-
-        //*********************************** 
-        //? SAVE CONFIG FILE
-        //*********************************** 
-        if (Object.keys(optionsObj).length !== 0) {
-            fs.writeFileSync(`${__dirname}` + "/config.json", JSON.stringify(optionsObj));
-            console.log(green('√ ') + `Config Saved As: ${hyperlinker(green('config.json'), __dirname + '/config.json')}`)
-        }
-
-        let results = {}
-
-        optionsObj.Repos.forEach(async ({ URL, Name, GitHubUser }) => {
-            try {
-                let user = GitHubUser;
-                let userDir = `${__dirname}/repos/${user}`
-                let repoName = Name;
-
-                let repoInfo = {
-                    user,
-                    userDir,
-                    URL,
-                    repoName
-                }
-
-                let cloneCommandObj = {
-                    repoInfo,
-                    loadPrevOptions,
-                    optionsObj,
-                    shell,
-                    os
-                }
-
-                //*********************************** 
-                //? CLONE REPOS
-                //*********************************** 
-                await cloneRepos(cloneCommandObj)
-
-                // If directory exists/after clone, run commands -> commitCount/grep/Bcrypt
-                if (fs.existsSync(`${userDir}`)) {
-
-                    //*********************************** 
-                    //? GIT BRANCH COMMITS
-                    //*********************************** 
-                    let branchObj = {}
-                    await commitsCommand({ branchObj, os, userDir })
-
-                    //*********************************** 
-                    //? GREP EXPRESS ROUTER ENDPOINTS
-                    //*********************************** 
-                    let endpoints = await grepCommand({ userDir });
-
-
-
-                    let bcryptCommandStr = `cd ${userDir} && git grep -r "bcrypt" ":!*.json" ":!*.md"`
-                    bcryptCommandRes = await promise(bcryptCommandStr, '')
-
-                    console.log(bcryptCommandRes);
-
-                    if (!results[parseUser(URL)]) {
-                        results[parseUser(URL)] = {
-                            Files: {}
-                        }
-                    }
-
-                    endpoints.forEach(async (line) => {
-                        try {
-
-
-                            // Parse Data
-                            let fName = line.split('/')[1].split('.')[0].toLowerCase()
-                            let method = (line.split('/')[1].split('.')[2]).slice(0, -2).toUpperCase()
-                            let path = line.split("(")[1].split(',')[0].slice(1, -1)
-                            let filePath = "/" + line.split("/")[0] + "/" + line.split("/")[1].split(":")[0]
-
-                            let async = line.split("(")[1].split(',')[2] !== undefined ? true : false
-                            let validated = line.split("(")[1].split(',').length === 3 ? true : false
-
-                            let tmpOptionsObj = { async, validated }
-
-                            // console.log(filePath);
-
-
-                            // catCommand = await promise(`cat ${userDir + filePath}`, '', { shell: shell })
-                            // console.log(catCommand)
-
-
-                            // Endpoint Obj
-                            let resObj = {
-                                Path: path,
-                                Method: method,
-                            }
-                            if (optionsObj?.Options?.ServerOptions?.length > 0) {
-                                optionsObj?.Options?.ServerOptions.forEach((i) => {
-                                    for (y in i) {
-                                        if (!resObj[y] || resObj[y] === true) {
-                                            Object.keys(tmpOptionsObj).forEach(i => {
-                                                resObj[y] = tmpOptionsObj[i]
-                                            })
-                                            if (resObj[y]) {
-                                                break
-                                            }
-                                        }
-                                    }
-                                })
-
-                            }
-
-                            if (!results[user].Files[fName]) {
-                                results[user].Files[fName] = {
-                                    Endpoints: [
-
-                                    ]
-                                }
-                            }
-
-                            results[user].Files[fName].Endpoints.push(resObj)
-
-                            //Remove Dupes
-                            let tmp = results[user].Files[fName].Endpoints
-                            results[user].Files[fName].Endpoints = Array.from(new Set(tmp.map(JSON.stringify))).map((i) => JSON.parse(i));
-                            let cleaned = results[user].Files[fName].Endpoints
-
-                            // Build Final Results Obj
-                            results[user].Files[fName] = { NumOfEndpoints: cleaned.length, Endpoints: cleaned }
-                            results[user] = { Branches: branchObj, ...results[user] }
-                        } catch (err) {
-                            console.log({ err })
-                        }
-                    });
-
-                };
-
-                //*********************************** 
-                //? SAVE RESULTS FILE
-                //*********************************** 
-                saveResults({ results, optionsObj });
-
-            } catch (err) {
-                console.log({ err });
-            };
+        CFonts.say('Pro_Grader', {
+            font: 'tiny',              // define the font face
+            align: 'left',              // define text alignment
+            colors: ['red'],         // define all colors
+            background: 'transparent',  // define the background color, you can also use `backgroundColor` here as key
+            letterSpacing: 1,           // define letter spacing
+            lineHeight: 1,              // define the line height
+            space: true,                // define if the output text should have empty lines on top and on the bottom
+            maxLength: '0',             // define how many character can be on one line
+            gradient: ['#8b0000', 'red', '#841922'],            // define your two gradient colors
+            independentGradient: false, // define if you want to recalculate the gradient for each new line
+            transitionGradient: true,  // define if this is a transition between colors directly
+            env: 'node'                 // define the environment CFonts is being executed in
         });
+
+
+        //*********************************** 
+        //? MENU OTHER ACTIONS
+        //*********************************** 
+        const menuChoice = await menuSelectionActions()
+
+        if (menuChoice === 'Start') {
+            const configOptions = {
+                optionsObj,
+                prevOptions,
+            }
+            //*********************************** 
+            //? CHECK PREVIOUS CONFIG
+            //*********************************** 
+            let [gitHubURLs, loadPrevOpts] = await configureOptions(configOptions)
+            optionsObj = gitHubURLs
+            //*********************************** 
+            //? SAVE CONFIG FILE
+            //*********************************** 
+            if (Object.keys(optionsObj).length !== 0) {
+                fs.writeFileSync(`${__dirname}` + "/config.json", JSON.stringify(optionsObj));
+                console.log(green('√ ') + `Config Saved As: ${hyperlinker(green('config.json'), __dirname + '/config.json')}`)
+            }
+
+            let results = {}
+            //*********************************** 
+            //? For all of the input Repos
+            //*********************************** 
+            optionsObj.Repos.forEach(async ({ URL, Name, GitHubUser }) => {
+                try {
+                    let user = GitHubUser;
+                    let userDir = `${__dirname}/repos/${user}`
+                    let repoName = Name;
+                    let repoInfo = {
+                        user,
+                        userDir,
+                        URL,
+                        repoName
+                    }
+                    let cloneCommandObj = {
+                        repoInfo,
+                        loadPrevOpts,
+                        optionsObj,
+                        shell,
+                        os
+                    }
+                    //*********************************** 
+                    //? CLONE REPOS
+                    //*********************************** 
+                    await cloneRepos(cloneCommandObj)
+                    //*********************************** 
+                    //? If clone was successfull and directories exist
+                    //*********************************** 
+                    if (fs.existsSync(`${userDir}`)) {
+                        //*********************************** 
+                        //? GIT BRANCH COMMITS
+                        //*********************************** 
+                        let branchObj = {}
+                        await commitsCommand({ branchObj, os, userDir })
+                        if (optionsObj.Options.Selection === 'Server') {
+                            //*********************************** 
+                            //? RUN SERVER COMMANDS
+                            //*********************************** 
+                            await serverCommands(repoInfo, results, optionsObj, branchObj);
+                        }
+                    };
+                    //*********************************** 
+                    //? SAVE RESULTS FILE
+                    //*********************************** 
+                    saveResults({ results, optionsObj });
+                } catch (err) {
+                    console.log({ err });
+                };
+            });
+        }
     } catch (err) {
         console.log({ err });
     };
