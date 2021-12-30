@@ -294,7 +294,7 @@ const prevOptionsCheck = async () => {
     };
 };
 
-async function promise(cmd, resMsg, opts = {}) {
+const promise = async (cmd, resMsg, opts = {}) => {
     return new Promise((resolve, reject) => {
         exec(cmd, { ...opts }, (error, stdout, stderr) => {
             if (error) {
@@ -302,6 +302,7 @@ async function promise(cmd, resMsg, opts = {}) {
                 reject();
             } else if (stderr) {
                 console.log({ stderr })
+
             } else if (stdout.length > 0) {
                 resolve(stdout)
             } else {
@@ -564,10 +565,9 @@ const menuSelectionActions = async (os, shell) => {
 
         let prevOptions = {}, optionsObj = {}, os = process.platform, loadPrevOptions = false
         let shell = os === 'win32' ? 'pwsh.exe' : true
-        // if (os === 'win32') {
-        let res = await promise(`git config core.ignorecase false`, '')
-        console.log(res);
-        // }
+        if (os === 'win32') {
+            let caseSense = promise(`fsutil.exe file SetCaseSensitiveInfo ${__dirname + '/repos'} enable`, '')
+        }
 
         CFonts.say('Pro_Grader', {
             font: 'tiny',              // define the font face
