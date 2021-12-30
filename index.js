@@ -564,9 +564,10 @@ const menuSelectionActions = async (os, shell) => {
 
         let prevOptions = {}, optionsObj = {}, os = process.platform, loadPrevOptions = false
         let shell = os === 'win32' ? 'pwsh.exe' : true
-        if (os === 'win32') {
-            exec(`git config core.ignorecase true`, '')
-        }
+        // if (os === 'win32') {
+        let res = await promise(`git config core.ignorecase false`, '')
+        console.log(res);
+        // }
 
         CFonts.say('Pro_Grader', {
             font: 'tiny',              // define the font face
