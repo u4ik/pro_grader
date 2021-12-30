@@ -228,10 +228,10 @@ const cloneReposQuestion = async (obj) => {
 }
 
 const loadRepos = async (optObj, loadedPrevOpt) => {
+    let repoObj;
     if (optObj?.Repos?.length > 0) {
         console.log(optObj.Repos.map(i => i['URL']))
         let loadPrevRepos = await (prompts(gitHubPrevURLQuestion, { onCancel }))
-        let repoObj;
         if (loadPrevRepos.LoadPrev) {
             if (loadedPrevOpt) {
                 repoObj = {
