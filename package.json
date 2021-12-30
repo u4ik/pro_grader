@@ -1,6 +1,6 @@
 {
     "name": "pro_grader",
-    "version": "1.0.19",
+    "version": "1.0.20",
     "description": "A tool to batch clone git repos and log express endpoints.",
     "main": "index.js",
     "scripts": {
