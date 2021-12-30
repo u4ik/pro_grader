@@ -25,7 +25,6 @@ const __dirname = dirname(__filename);
 
 import axios from 'axios';
 
-console.log(version);
 
 /*
 ___________TESTS_______________
