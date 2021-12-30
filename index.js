@@ -245,7 +245,7 @@ const loadRepos = async (optObj, loadedPrevOpt) => {
 
             }
         } else {
-            tmp = await (prompts(gitHubURLsQuestion, { onCancel }))
+            let tmp = await (prompts(gitHubURLsQuestion, { onCancel }))
             repoObj = {
                 ...parseRepoArray(tmp.Repos),
                 Options: { ...optObj.Options }
@@ -319,16 +319,29 @@ const promise = async (cmd, resMsg, opts = {}, userDir = '') => {
 };
 
 const cloneReposCommand = async ({ user, userDir, URL, repoName }, shell, os) => {
-    let gitCloneCommand = fs.existsSync(userDir)
+    console.log({ user, userDir, URL, repoName });
+    let gitCloneCommand = fs.existsSync(userDir + '/' + repoName)
         ?
-        `${os === 'win32' ? 'del' : 'rm'} ${userDir} -Force -Recurse  && git clone ${URL} ${userDir} --quiet`
+        `${os === 'win32' ? 'del' : 'rm'} ${userDir + '/' + repoName} -Force -Recurse  && git clone ${URL} ${userDir + '/' + repoName} --quiet`
         :
-        `git clone ${URL} ${userDir} --quiet`
+        `git clone ${URL} ${userDir + '/' + repoName} --quiet`
 
     let cloneRes = green('➡️ ') + `Cloning ${user}/${repoName}`
     let cloneCommand = await promise(gitCloneCommand, cloneRes, { shell: shell }, userDir)
     console.log(cloneCommand)
 }
+// const cloneReposCommand = async ({ user, userDir, URL, repoName }, shell, os) => {
+//     console.log({ user, userDir, URL, repoName });
+//     let gitCloneCommand = fs.existsSync(userDir)
+//         ?
+//         `${os === 'win32' ? 'del' : 'rm'} ${userDir} -Force -Recurse  && git clone ${URL} ${userDir} --quiet`
+//         :
+//         `git clone ${URL} ${userDir} --quiet`
+
+//     let cloneRes = green('➡️ ') + `Cloning ${user}/${repoName}`
+//     let cloneCommand = await promise(gitCloneCommand, cloneRes, { shell: shell }, userDir)
+//     console.log(cloneCommand)
+// }
 
 const configureOptions = async ({
     optionsObj,
@@ -387,8 +400,8 @@ const commitsCommand = async ({ branchObj, os, userDir }) => {
     })
 }
 
-const grepCommand = async ({ userDir }) => {
-    let grepCommandStr = `cd ${userDir} && git grep -r -n "router" ":!*.json" ":!*.md"`
+const grepCommand = async ({ userDir, repoName }) => {
+    let grepCommandStr = `cd ${userDir + '/' + repoName} && git grep -r -n "router" ":!*.json" ":!*.md"`
     let grepCommandRes = await promise(grepCommandStr, '')
 
     return grepCommandRes.split('\n').filter(i => i[0] === 'c').filter(i => !i.includes('//')).filter(i => i.includes('router.'));
@@ -405,16 +418,16 @@ const saveResults = ({ results, optionsObj }) => {
     }
 }
 
-const serverCommands = async ({ userDir, user, URL }, results, optionsObj, branchObj) => {
+const serverCommands = async ({ repoName, userDir, user, URL }, results, optionsObj, branchObj) => {
     //*********************************** 
     //? GREP EXPRESS ROUTER ENDPOINTS
     //*********************************** 
-    let endpoints = await grepCommand({ userDir }, results);
+    let endpoints = await grepCommand({ userDir, repoName }, results);
 
     //*********************************** 
     //? GREP BCRYPT
     //*********************************** 
-    let bcryptCommandStr = `cd ${userDir} && git grep -r -n "bcrypt" ":!*.json" ":!*.md"`
+    let bcryptCommandStr = `cd ${userDir + '/' + repoName} && git grep -r -n "bcrypt" ":!*.json" ":!*.md"`
     let bcryptCommandRes = await promise(bcryptCommandStr, '')
 
     let [bcrypt1, bcrypt2] = bcryptCommandRes.split(" ").filter(i => i !== '').filter(i => i.includes('bcrypt.hash') || i.includes('bcrypt.compare'));
@@ -431,6 +444,7 @@ const serverCommands = async ({ userDir, user, URL }, results, optionsObj, branc
             Files: {}
         }
     }
+    console.log(endpoints);
 
     endpoints.forEach(async (line) => {
 
@@ -556,7 +570,7 @@ const menuSelectionActions = async (os, shell) => {
 
             '* Currently working on React+TS implementation'
         )
-        menuSelectionActions();
+        main();
     }
 
 
@@ -567,7 +581,7 @@ const menuSelectionActions = async (os, shell) => {
 //*********************************** 
 //? MAIN INITIATION
 //*********************************** 
-(async () => {
+const main = async () => {
     try {
 
         let prevOptions = {}, optionsObj = {}, os = process.platform, loadPrevOptions = false
@@ -667,5 +681,7 @@ const menuSelectionActions = async (os, shell) => {
     } catch (err) {
         console.log({ err });
     };
-})();
+};
+
+main();
 
