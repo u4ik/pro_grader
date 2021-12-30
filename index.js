@@ -306,9 +306,11 @@ const promise = async (cmd, resMsg, opts = {}, userDir = '') => {
                     let x = exec(`cd ${userDir} && git config core.ignorecase true`, (errer, stdout, stderr) => {
                         if (error) {
                             reject();
+                            console.log(error);
                         } else if (stderr) {
                             console.log({ stderr })
-                        } else if (stdout.length > 0) {
+                        } else if (stdout) {
+                            console.log(stdout);
                             resolve(stdout)
                         } else {
                             resolve(resMsg);
