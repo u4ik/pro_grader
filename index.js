@@ -2,9 +2,10 @@
 import dotenvpkg from 'dotenv'
 dotenvpkg.config();
 import prompts from 'prompts';
+
 import path from 'path';
 import pkg from 'kleur';
-const { green } = pkg
+const { green, red } = pkg
 import { spawn, exec } from 'child_process'
 import fs from 'fs';
 import hyperlinker from 'hyperlinker';
@@ -12,11 +13,19 @@ import { deepStrictEqual } from 'assert';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 import CFonts from 'cfonts';
+// import pkgjson from './package.json';
+
+
+import { createRequire } from "module"; // Bring in the ability to create the 'require' method
+const require = createRequire(import.meta.url); // construct the require method
+const { version } = require("./package.json")// use the require method
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 import axios from 'axios';
 
+console.log(version);
 
 /*
 ___________TESTS_______________
@@ -59,13 +68,13 @@ const commandPrompts = {
         ].filter(i => {
 
             if (!fs.existsSync(`${__dirname}` + "/config.json")) {
-                return i.title !== 'Delete Config File'
+                return i.value !== 'DelConfig'
             } else {
                 return i
             }
         }).filter(i => {
-            if (fs.readdirSync(`${__dirname}/repos`).length <= 1) {
-                return i.title !== 'Empty Repos Folder'
+            if (fs.readdirSync(`${__dirname}/repos`).length === 1) {
+                return i.value !== 'EmptyRepos'
             } else {
                 return i
             }
@@ -81,12 +90,9 @@ const commandPrompts = {
             validate: val => /^([-!# - '*+/-9=?A-Z^-~]+(\.[-!#-' * +/-9=?A-Z^-~]+)*|"([]!#-[^-~ \t]|(\\[\t -~]))+")@[0-9A-Za-z]([0-9A-Za-z-]{0,61}[0-9A-Za-z])?(\.[0-9A-Za-z]([0-9A-Za-z-]{0,61}[0-9A-Za-z])?)+$/.test(val) !== true ? 'Please enter a valid email address' : true
         },
         {
-
             type: 'text',
             name: 'BugValue',
             message: `List the bug or issue`,
-
-
         }
     ],
     loadConfig: [
@@ -518,25 +524,32 @@ const reportBugFetch = async () => {
     })
 }
 
-const menuSelectionActions = async () => {
+const menuSelectionActions = async (os, shell) => {
     let menuSelectionRes = await (prompts(mainMenu, { onCancel }))
 
     const { MenuSelection } = menuSelectionRes;
 
     if (MenuSelection === 'EmptyRepos') {
-        const emptyReposCommand = `${os === 'win32' ? 'del' : 'rm'} ${__dirname}/repos/ * -Force - Recurse - Exclude *.gitkeep * `
+        const emptyReposCommand = `${os === 'win32' ? 'del' : 'rm'} ${__dirname}/repos/* -Force -Recurse -Exclude *gitkeep* `
         let emptyReposFolder = await promise(emptyReposCommand, 'Cleared Repos Folder', { shell: shell })
         console.log(green('√ ') + emptyReposFolder);
     }
 
     if (MenuSelection === 'DelConfig') {
-        const delConfigCommand = `${os === 'win32' ? 'del' : 'rm'} ${__dirname} /config.json -Force `
+        const delConfigCommand = `${os === 'win32' ? 'del' : 'rm'} ${__dirname}/config.json -Force `
         let delConfig = await promise(delConfigCommand, 'Config Deleted', { shell: shell })
         console.log(green('√ ') + delConfig);
     }
 
     if (MenuSelection === 'Report') {
         await reportBugFetch()
+    }
+    if (MenuSelection === 'About') {
+        console.log(red(`
+        Pro_Grader ${version} \n`) +
+
+            '* Currently working on React+TS implementation'
+        )
     }
 
 
@@ -575,7 +588,7 @@ const menuSelectionActions = async () => {
         //*********************************** 
         //? MENU OTHER ACTIONS
         //*********************************** 
-        const menuChoice = await menuSelectionActions()
+        const menuChoice = await menuSelectionActions(os, shell)
 
         if (menuChoice === 'Start') {
             const configOptions = {
