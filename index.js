@@ -261,7 +261,7 @@ const loadRepos = async (optObj, loadedPrevOpt) => {
         }
         return repoObj;
     }
-    tmp = await (prompts(gitHubURLsQuestion, { onCancel }))
+    let tmp = await (prompts(gitHubURLsQuestion, { onCancel }))
     let tmpClone = await cloneReposQuestion(optObj)
     repoObj = {
         ...parseRepoArray(tmp['Repos']),
