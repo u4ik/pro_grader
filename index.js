@@ -294,7 +294,7 @@ const prevOptionsCheck = async () => {
     };
 };
 
-const promise = async (cmd, resMsg, opts = {}, userDir = '') => {
+const promise1 = async (cmd, resMsg, opts = {}, userDir = '') => {
     return new Promise((resolve, reject) => {
         exec(cmd, { ...opts }, (error, stdout, stderr) => {
             if (error) {
@@ -304,6 +304,28 @@ const promise = async (cmd, resMsg, opts = {}, userDir = '') => {
                 console.log({ stderr })
                 if (stderr.includes('collided')) {
                     let x = promise(`cd ${userDir} && git config core.ignorecase true`, '')
+                    console.log(x);
+
+                }
+
+            } else if (stdout.length > 0) {
+                resolve(stdout)
+            } else {
+                resolve(resMsg);
+            }
+        });
+    });
+};
+const promise = async (cmd, resMsg, opts = {}, userDir = '') => {
+    return new Promise((resolve, reject) => {
+        exec(cmd, { ...opts }, async (error, stdout, stderr) => {
+            if (error) {
+                console.log({ error })
+                reject();
+            } else if (stderr) {
+                console.log({ stderr })
+                if (stderr.includes('collided')) {
+                    let x = await promise1(`cd ${userDir} && git config core.ignorecase true`, '')
                     console.log(x);
 
                 }
