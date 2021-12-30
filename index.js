@@ -302,6 +302,7 @@ const promise = async (cmd, resMsg, opts = {}) => {
                 reject();
             } else if (stderr) {
                 console.log({ stderr })
+                console.log(stderr.includes('collided'))
 
             } else if (stdout.length > 0) {
                 resolve(stdout)
