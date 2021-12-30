@@ -314,7 +314,7 @@ const promise = async (cmd, resMsg, opts = {}, userDir = '') => {
                             resolve(resMsg);
                         }
                     })
-                    console.log(x);
+
 
                 }
 
