@@ -566,7 +566,7 @@ const menuSelectionActions = async (os, shell) => {
         let prevOptions = {}, optionsObj = {}, os = process.platform, loadPrevOptions = false
         let shell = os === 'win32' ? 'pwsh.exe' : true
         if (os === 'win32') {
-            let caseSense = promise(`fsutil.exe file SetCaseSensitiveInfo ${__dirname + '/repos'} enable`, '')
+            let caseSense = await promise(`fsutil.exe file SetCaseSensitiveInfo ${__dirname + '/repos'} enable`, '')
         }
 
         CFonts.say('Pro_Grader', {
