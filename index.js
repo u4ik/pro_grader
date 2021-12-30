@@ -566,7 +566,7 @@ const menuSelectionActions = async (os, shell) => {
         let prevOptions = {}, optionsObj = {}, os = process.platform, loadPrevOptions = false
         let shell = os === 'win32' ? 'pwsh.exe' : true
         if (os === 'win32') {
-            let caseSense = await promise(`cd ${__dirname + '/repos && git config core.ignorecase true --add'} `, '', { shell: shell })
+            let caseSense = await promise(`cd ${__dirname + ' && git config core.ignorecase true --add'} `, '', { shell: shell })
         }
 
         CFonts.say('Pro_Grader', {
