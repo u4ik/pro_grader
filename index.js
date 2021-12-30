@@ -302,12 +302,6 @@ const promise1 = async (cmd, resMsg, opts = {}, userDir = '') => {
                 reject();
             } else if (stderr) {
                 console.log({ stderr })
-                if (stderr.includes('collided')) {
-                    let x = promise(`cd ${userDir} && git config core.ignorecase true`, '')
-                    console.log(x);
-
-                }
-
             } else if (stdout.length > 0) {
                 resolve(stdout)
             } else {
