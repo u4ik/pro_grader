@@ -59,7 +59,7 @@ const commandPrompts = {
         name: 'MenuSelection',
         message: 'Choose an option',
         choices: [
-            { title: '➡️ Start', description: 'Start Pro_Grader', value: 'Start' },
+            { title: '🔍 Start', description: 'Start Pro_Grader', value: 'Start' },
             { title: 'ℹ️ About', description: 'About Pro_Grader', value: 'About' },
             { title: '🪲 Report A Bug', description: 'Send me a message about a bug/issue', value: 'Report' },
             { title: '❌ Empty Repos Folder', description: 'Clear out the repo files stored in app dir', value: 'EmptyRepos' },
@@ -556,6 +556,7 @@ const menuSelectionActions = async (os, shell) => {
 
             '* Currently working on React+TS implementation'
         )
+        menuSelectionActions();
     }
 
 
