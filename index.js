@@ -1,30 +1,26 @@
 #!/usr/bin/env node
-import dotenvpkg from 'dotenv'
-dotenvpkg.config();
-import prompts from 'prompts';
-
-import path from 'path';
-import pkg from 'kleur';
-const { green, red } = pkg
-import { spawn, exec } from 'child_process'
-import fs from 'fs';
-import hyperlinker from 'hyperlinker';
-import { deepStrictEqual } from 'assert';
-import { fileURLToPath } from 'url';
-import { dirname } from 'path';
-import CFonts from 'cfonts';
-// import pkgjson from './package.json';
-
-
-import { createRequire } from "module"; // Bring in the ability to create the 'require' method
-const require = createRequire(import.meta.url); // construct the require method
-const { version } = require("./package.json")// use the require method
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
 
 import axios from 'axios';
+import CFonts from 'cfonts';
+import { createRequire } from "module"; // Bring in the ability to create the 'require' method
+import { deepStrictEqual } from 'assert';
+import { dirname } from 'path';
+import dotenvpkg from 'dotenv'
+import { fileURLToPath } from 'url';
+import fs from 'fs';
+import hyperlinker from 'hyperlinker';
+import path from 'path';
+import pkg from 'kleur';
+import prompts from 'prompts';
+import { spawn, exec } from 'child_process'
 
+const cRequire = createRequire(import.meta.url); // construct the require method
+const __dirname = dirname(__filename);
+const __filename = fileURLToPath(import.meta.url);
+const { green, red } = pkg
+const { version } = cRequire('./package.json') // use the require method
+
+dotenvpkg.config();
 
 /*
 
@@ -76,111 +72,98 @@ const commandPrompts = {
             message: `List the bug or issue`,
         }
     ],
-    loadConfig: [
-        {
-            type: 'toggle',
-            name: 'LoadPrev',
-            message: 'Previous options config found (config.json). Load it?',
-            initial: true,
-            active: 'Yes',
-            inactive: 'No',
+    loadConfig: [{
+        type: 'toggle',
+        name: 'LoadPrev',
+        message: 'Previous options config found (config.json). Load it?',
+        initial: true,
+        active: 'Yes',
+        inactive: 'No',
 
-        }
-    ],
-    clientOrServerQuestion: [
-        {
-            type: 'select',
-            name: 'Selection',
-            message: 'Client or Server',
-            choices: [
-                { title: 'Client', description: 'React/FC Components', value: 'Client', disabled: true },
-                { title: 'Server', description: 'Node Express Server', value: 'Server' },
-            ],
-            initial: 1,
-        },
-        {
-            type: prev => prev === 'Client' ? 'multiselect' : null,
-            name: 'ClientOptions',
-            message: 'Client Options',
-            choices: [
-                { title: 'Red', value: '#ff0000', selected: true },
-                { title: 'Green', value: '#00ff00', selected: true },
-                { title: 'Blue', value: '#0000ff', selected: true }
-            ],
-            instructions: false,
-            max: 2,
-            hint: '- Space to select. Return to submit'
-        },
-        {
-            type: prev => prev === 'Server' ? 'multiselect' : null,
-            name: 'ServerOptions',
-            message: 'Server Options',
-            choices: [
+    }],
+    clientOrServerQuestion: [{
+        type: 'select',
+        name: 'Selection',
+        message: 'Client or Server',
+        choices: [
+            { title: 'Client', description: 'React/FC Components', value: 'Client', disabled: true },
+            { title: 'Server', description: 'Node Express Server', value: 'Server' },
+        ],
+        initial: 1,
+    },
+    {
+        type: prev => prev === 'Client' ? 'multiselect' : null,
+        name: 'ClientOptions',
+        message: 'Client Options',
+        choices: [
+            { title: 'Red', value: '#ff0000', selected: true },
+            { title: 'Green', value: '#00ff00', selected: true },
+            { title: 'Blue', value: '#0000ff', selected: true }
+        ],
+        instructions: false,
+        max: 2,
+        hint: '- Space to select. Return to submit'
+    },
+    {
+        type: prev => prev === 'Server' ? 'multiselect' : null,
+        name: 'ServerOptions',
+        message: 'Server Options',
+        choices: [
 
-                { title: 'Validated', value: { Validated: true }, description: 'Check for token on endpoint ', selected: true },
-                { title: 'Async', value: { Async: true }, description: 'Show if endpoint is async', selected: true },
-                { title: 'Bcrypt', value: { Bcrypt: true }, description: 'Is Bcrypt used in Auth Signup/Login?', selected: true },
+            { title: 'Validated', value: { Validated: true }, description: 'Check for token on endpoint ', selected: true },
+            { title: 'Async', value: { Async: true }, description: 'Show if endpoint is async', selected: true },
+            { title: 'Bcrypt', value: { Bcrypt: true }, description: 'Is Bcrypt used in Auth Signup/Login?', selected: true },
 
-            ],
-            instructions: false,
-            max: 3,
-            hint: '- Space to select. Enter to submit',
+        ],
+        instructions: false,
+        max: 3,
+        hint: '- Space to select. Enter to submit',
 
-        }
+    }
     ],
-    logResultsQuestion: [
-        {
-            type: 'toggle',
-            name: 'LogResults',
-            message: 'Log Results?',
-            initial: true,
-            active: 'Yes',
-            inactive: 'No'
-        }
-    ],
-    gitHubPrevURLQuestion: [
-        {
-            type: 'toggle',
-            name: 'LoadPrev',
-            message: 'Use Current Repos in repos config?',
-            initial: true,
-            active: 'Yes',
-            inactive: 'No'
-        }
-    ],
-    gitHubURLsQuestion: [
-        {
-            type: 'list',
-            name: 'Repos',
-            message: `Enter Github Repo URLs Separated By Commas.`,
-            initial: '',
-            separator: ',',
-            validate: value => value.length === 0 ? `URLs cannot be blank!` : true
-        },
-    ],
+    logResultsQuestion: [{
+        type: 'toggle',
+        name: 'LogResults',
+        message: 'Log Results?',
+        initial: true,
+        active: 'Yes',
+        inactive: 'No'
+    }],
+    gitHubPrevURLQuestion: [{
+        type: 'toggle',
+        name: 'LoadPrev',
+        message: 'Use Current Repos in repos config?',
+        initial: true,
+        active: 'Yes',
+        inactive: 'No'
+    }],
+    gitHubURLsQuestion: [{
+        type: 'list',
+        name: 'Repos',
+        message: `Enter Github Repo URLs Separated By Commas.`,
+        initial: '',
+        separator: ',',
+        validate: value => value.length === 0 ? `URLs cannot be blank!` : true
+    },],
 
-    gitHubCloneRepoQuestion: [
-        {
-            type: 'toggle',
-            name: 'Reclone',
-            message: 'Reclone repos on every execution?',
-            initial: true,
-            active: 'Yes',
-            inactive: 'No',
-            hint: 'hidy hooo'
-        }
-    ],
+    gitHubCloneRepoQuestion: [{
+        type: 'toggle',
+        name: 'Reclone',
+        message: 'Reclone repos on every execution?',
+        initial: true,
+        active: 'Yes',
+        inactive: 'No',
+        hint: 'hidy hooo'
+    }],
 
-    optionsCorruptQuestion: [
-        {
-            type: 'message',
-            name: 'OptionsCorrupt',
-            message: 'Options file corrupt, it will be removed and rebuilt.',
-            initial: true,
-            active: 'Yes',
-            // inactive: 'No'
-        }
-    ]
+    optionsCorruptQuestion: [{
+        type: 'message',
+        name: 'OptionsCorrupt',
+        message: 'Options file corrupt, it will be removed and rebuilt.',
+        initial: true,
+        active: 'Yes',
+        // inactive: 'No'
+    }]
 }
 
 const { loadConfig, clientOrServerQuestion, logResultsQuestion, gitHubPrevURLQuestion, gitHubCloneRepoQuestion, gitHubURLsQuestion, optionsCorruptQuestion, reportBug, mainMenu } = commandPrompts
@@ -217,12 +200,14 @@ const loadRepos = async (optObj, loadedPrevOpt) => {
         if (loadPrevRepos.LoadPrev) {
             if (loadedPrevOpt) {
                 repoObj = {
-                    Repos: optObj['Repos'], Options: { ...optObj.Options }
+                    Repos: optObj['Repos'],
+                    Options: { ...optObj.Options }
                 }
             } else {
                 let tmp = await cloneReposQuestion(optObj)
                 repoObj = {
-                    Repos: optObj['Repos'], Options: { ...optObj.Options, ...tmp }
+                    Repos: optObj['Repos'],
+                    Options: { ...optObj.Options, ...tmp }
                 }
 
             }
@@ -253,6 +238,7 @@ const loadRepos = async (optObj, loadedPrevOpt) => {
 };
 
 const onCancel = () => {
+    console.log(green('Exiting...'))
     process.exit();
 }
 const prevOptionsCheck = async () => {
@@ -286,7 +272,7 @@ const promise = async (cmd, resMsg, opts = {}, userDir = '') => {
             } else if (stderr) {
                 console.log({ stderr })
                 if (stderr.includes('collided')) {
-                    // let x = await promise1(`cd ${userDir} && git config core.ignorecase true`, '')
+                    // let x = await promise1(`cd ${ userDir } && git config core.ignorecase true`, '')
                     // console.log(x);
 
                 }
@@ -302,13 +288,11 @@ const promise = async (cmd, resMsg, opts = {}, userDir = '') => {
 
 const cloneReposCommand = async ({ user, userDir, URL, repoName }, shell, os) => {
     console.log({ user, userDir, URL, repoName });
-    let gitCloneCommand = fs.existsSync(userDir + '/' + repoName)
-        ?
-        `${os === 'win32' ? 'del' : 'rm'} ${userDir + '/' + repoName} -Force -Recurse  && git clone ${URL} ${userDir + '/' + repoName} --quiet`
-        :
+    let gitCloneCommand = fs.existsSync(userDir + '/' + repoName) ?
+        `${os === 'win32' ? 'del' : 'rm'} ${userDir + '/' + repoName} -Force - Recurse && git clone ${URL} ${userDir + '/' + repoName} --quiet` :
         `git clone ${URL} ${userDir + '/' + repoName} --quiet`
 
-    let cloneRes = green('➡️ ') + `Cloning ${user}/${repoName}`
+    let cloneRes = green('➡️ ') + `Cloning ${user} /${repoName}`
     let cloneCommand = await promise(gitCloneCommand, cloneRes, { shell: shell }, userDir)
     console.log(cloneCommand)
 }
@@ -561,31 +545,35 @@ const menuSelectionActions = async (os, shell) => {
     return MenuSelection
 }
 
+const displayTitle = () => {
+    CFonts.say('Pro_Grader', {
+        font: 'tiny',              // define the font face
+        align: 'left',              // define text alignment
+        colors: ['red'],         // define all colors
+        background: 'transparent',  // define the background color, you can also use `backgroundColor` here as key
+        letterSpacing: 1,           // define letter spacing
+        lineHeight: 1,              // define the line height
+        space: true,                // define if the output text should have empty lines on top and on the bottom
+        maxLength: '0',             // define how many character can be on one line
+        gradient: ['#8b0000', 'red', '#841922'],            // define your two gradient colors
+        independentGradient: false, // define if you want to recalculate the gradient for each new line
+        transitionGradient: true,  // define if this is a transition between colors directly
+        env: 'node'                 // define the environment CFonts is being executed in
+    });
+}
+
 //*********************************** 
 //? MAIN INITIATION
 //*********************************** 
 const main = async () => {
     try {
 
-        let prevOptions = {}, optionsObj = {}, os = process.platform, loadPrevOptions = false
-        let shell = os === 'win32' ? 'pwsh.exe' : true
+        let prevOptions = {}, optionsObj = {}, os = process.platform, shell = os === 'win32' ? 'pwsh.exe' : true
 
-
-        CFonts.say('Pro_Grader', {
-            font: 'tiny',              // define the font face
-            align: 'left',              // define text alignment
-            colors: ['red'],         // define all colors
-            background: 'transparent',  // define the background color, you can also use `backgroundColor` here as key
-            letterSpacing: 1,           // define letter spacing
-            lineHeight: 1,              // define the line height
-            space: true,                // define if the output text should have empty lines on top and on the bottom
-            maxLength: '0',             // define how many character can be on one line
-            gradient: ['#8b0000', 'red', '#841922'],            // define your two gradient colors
-            independentGradient: false, // define if you want to recalculate the gradient for each new line
-            transitionGradient: true,  // define if this is a transition between colors directly
-            env: 'node'                 // define the environment CFonts is being executed in
-        });
-
+        //*********************************** 
+        //? DISPLAY TITLE
+        //*********************************** 
+        displayTitle();
 
         //*********************************** 
         //? MENU OTHER ACTIONS
@@ -616,28 +604,31 @@ const main = async () => {
             //*********************************** 
             optionsObj.Repos.forEach(async ({ URL, Name, GitHubUser }) => {
                 try {
-                    let user = GitHubUser;
-                    let userDir = `${__dirname}/repos/${user}`
-                    let repoName = Name;
-                    let repoInfo = {
-                        user,
-                        userDir,
-                        URL,
-                        repoName
-                    }
-                    let cloneCommandObj = {
-                        repoInfo,
-                        loadPrevOpts,
-                        optionsObj,
-                        shell,
-                        os
-                    }
+                    let
+                        user = GitHubUser,
+                        userDir = `${__dirname}/repos/${user}`,
+                        repoName = Name,
+                        repoInfo = {
+                            user,
+                            userDir,
+                            URL,
+                            repoName
+                        },
+                        cloneCommandObj = {
+                            repoInfo,
+                            loadPrevOpts,
+                            optionsObj,
+                            shell,
+                            os
+                        };
+
+
                     //*********************************** 
                     //? CLONE REPOS
                     //*********************************** 
                     await cloneRepos(cloneCommandObj)
                     //*********************************** 
-                    //? If clone was successfull and directories exist
+                    //? If clone was successful and directories exist
                     //*********************************** 
                     if (fs.existsSync(`${userDir}`)) {
                         //*********************************** 
@@ -650,12 +641,18 @@ const main = async () => {
                             //? RUN SERVER COMMANDS
                             //*********************************** 
                             await serverCommands(repoInfo, results, optionsObj, branchObj);
+                        } else {
+                            //*********************************** 
+                            // TODO RUN CLIENT COMMANDS
+                            //*********************************** 
+                            // await clientCommands(repoInfo, results, optionsObj, branchObj);
                         }
                     };
                     //*********************************** 
                     //? SAVE RESULTS FILE
                     //*********************************** 
-                    saveResults({ results, optionsObj });
+                    console.log({ results });
+                    // saveResults({ results, optionsObj });
                 } catch (err) {
                     console.log({ err });
                 };
@@ -667,4 +664,3 @@ const main = async () => {
 };
 
 main();
-
