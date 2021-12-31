@@ -27,28 +27,10 @@ import axios from 'axios';
 
 
 /*
-___________TESTS_______________
-*______FROM  (NO REPOS)
-* [ ✔️ ] - Load Prev Options + Load Prev Repos 
-* [ ✔️ ] - Don't Load Prev Options + Don't Load Prev Repos 
 
-*______FROM SCRATCH (NO REPOS, NO Options.json, No results.json)
-* [ ✔️ ] - Load Prev Options + Load Prev Repos 
-* [ ✔️ ] - Don't Load Prev Options + Don't Load Prev Repos 
-
-*______FROM (NO Options.json, No results.json)
-* [ ✔️ ] - Options + Log 
-* [ ✔️ ] - No Options + No Log 
-* [ ✔️ ] - No Options + Log 
-
-*______FROM ALREADY DOWNLOADED FILES (REPOS,OPTIONS,RESULTS)
-* [ ✔️ ] - Load Prev Options + Load Prev Repos
-* [ ✔️ ] - Don't Load Prev Options + Don't Load Prev Repos + Don't Log + No Options
-* [ ✔️ ] - Don't Load Prev Options + Don't Load Prev Repos + Log + Options
-
+TODO: - Change up results obj to have repo names
+TODO: - Add Additional server logic - check for  JWT_SECRET, admin, dotenv
 TODO: - Add React TS Client
-TODO: - Add Additional server logic - check for dependency use bcryptjs, JWT_SECRET, admin, dotenv
-TODO: - Clone works??
 
 */
 
@@ -408,6 +390,7 @@ const grepCommand = async ({ userDir, repoName }) => {
 }
 
 const saveResults = ({ results, optionsObj }) => {
+    console.log(Object.keys(results).length, optionsObj.Repos.length);
     if (Object.keys(results).length === optionsObj.Repos.length) {
         if (optionsObj?.Options?.LogResults) {
             console.dir(results, { depth: null });
@@ -444,7 +427,7 @@ const serverCommands = async ({ repoName, userDir, user, URL }, results, options
             Files: {}
         }
     }
-    console.log(endpoints);
+
 
     endpoints.forEach(async (line) => {
 
@@ -457,7 +440,6 @@ const serverCommands = async ({ repoName, userDir, user, URL }, results, options
             let path = line.split("(")[1].split(',')[0].slice(1, -1)
             let filePath = "/" + line.split("/")[0] + "/" + line.split("/")[1].split(":")[0]
             let Async = line.split("(")[1].split(',').filter(i => i.replace(/\s/g, '')).includes(' async ')
-            // let Async = line.split("(")[1].split(',')[2] !== undefined ? true : false
             let Validated = line.split("(")[1].split(',').length === 3 ? true : false
             let Bcrypt = fName === obj.FileName && obj.Bcrypt && path === '/register' || path === '/login' ? true : false;
 
@@ -516,6 +498,7 @@ const serverCommands = async ({ repoName, userDir, user, URL }, results, options
             // Build Final Results Obj
             results[user].Files[fName] = { NumOfEndpoints: cleaned.length, Endpoints: cleaned }
             results[user] = { Branches: branchObj, ...results[user] }
+
         } catch (err) {
             console.log({ err })
         }
