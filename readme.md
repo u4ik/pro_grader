@@ -30,3 +30,11 @@ npm i -g pro_grader
   Usage
       grade
 ```
+
+## Results
+
+Example of output results
+
+<p align=''>
+<img width="auto" height="auto" src="https://i.ibb.co/kSgfvyY/pro-grader-results.png" style="border-radius:15px;border:1px solid white;margin:0em;">
+</p>
