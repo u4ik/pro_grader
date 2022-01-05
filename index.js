@@ -491,7 +491,8 @@ const reportBugFetch = async () => {
     const { BugValue, EmailValue } = reportBugRes;
 
     axios({
-        url: `https://formspree.io/f/${process.env.FORM_ID}`,
+        // url: `https://formspree.io/f/${process.env.FORM_ID}`,
+        url: `https://formspree.io/f/mjvlkwer`,
         method: 'post',
         headers: {
             'Accept': 'application/json'
