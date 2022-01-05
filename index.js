@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-
 import axios from 'axios';
 import CFonts from 'cfonts';
 import { createRequire } from "module"; // Bring in the ability to create the 'require' method
@@ -13,23 +12,30 @@ import path from 'path';
 import pkg from 'kleur';
 import prompts from 'prompts';
 import { spawn, exec } from 'child_process'
+import util from 'util'
 
 const cRequire = createRequire(import.meta.url); // construct the require method
-const __dirname = dirname(__filename);
 const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 const { green, red } = pkg
 const { version } = cRequire('./package.json') // use the require method
+const debugSkipOpts = true;
 
 dotenvpkg.config();
 
+let os = process.platform
+let shell = os === 'win32' ? 'pwsh.exe' : true
+
 /*
-
-TODO: - Change up results obj to have repo names
-TODO: - Add Additional server logic - check for  JWT_SECRET, admin, dotenv
-TODO: - Add React TS Client
-
+* Easy
+    TODO: - //! BUG: If additional folders in /repos, results logged multiple times...
+    TODO: - //! BUG: Loadprev->Yes->UseCurRepos->false === NO CLONING HAPPENING.
+    TODO: - Add option to randomize student groups
+* Med
+    TODO: - Add Additional server logic - check for  JWT_SECRET, admin, dotenv
+* Hard
+    TODO: - Add React TS Client
 */
-
 
 const commandPrompts = {
     mainMenu: [{
@@ -198,6 +204,7 @@ const loadRepos = async (optObj, loadedPrevOpt) => {
         console.log(optObj.Repos.map(i => i['URL']))
         let loadPrevRepos = await (prompts(gitHubPrevURLQuestion, { onCancel }))
         if (loadPrevRepos.LoadPrev) {
+            // console.log('loaded prev');
             if (loadedPrevOpt) {
                 repoObj = {
                     Repos: optObj['Repos'],
@@ -212,6 +219,9 @@ const loadRepos = async (optObj, loadedPrevOpt) => {
 
             }
         } else {
+
+            let emptyReposFolder = await emptyReposCommand({ os, shell }, 'cleared')
+
             let tmp = await (prompts(gitHubURLsQuestion, { onCancel }))
             repoObj = {
                 ...parseRepoArray(tmp.Repos),
@@ -262,7 +272,6 @@ const prevOptionsCheck = async () => {
     };
 };
 
-
 const promise = async (cmd, resMsg, opts = {}, userDir = '') => {
     return new Promise((resolve, reject) => {
         exec(cmd, { ...opts }, (error, stdout, stderr) => {
@@ -271,10 +280,10 @@ const promise = async (cmd, resMsg, opts = {}, userDir = '') => {
                 reject();
             } else if (stderr) {
                 console.log({ stderr })
+                // TODO: Handle case sense for files in repo with same name
                 if (stderr.includes('collided')) {
                     // let x = await promise1(`cd ${ userDir } && git config core.ignorecase true`, '')
                     // console.log(x);
-
                 }
 
             } else if (stdout.length > 0) {
@@ -286,28 +295,23 @@ const promise = async (cmd, resMsg, opts = {}, userDir = '') => {
     });
 };
 
+const emptyReposCommand = async ({ os, shell }, str) => {
+    const emptyReposCommand = `${os === 'win32' ? 'del' : 'rm'} ${__dirname}/repos/* -Force -Recurse -Exclude *gitkeep* `
+    return await promise(emptyReposCommand, str, { shell: shell })
+}
+
 const cloneReposCommand = async ({ user, userDir, URL, repoName }, shell, os) => {
-    console.log({ user, userDir, URL, repoName });
+
+
     let gitCloneCommand = fs.existsSync(userDir + '/' + repoName) ?
-        `${os === 'win32' ? 'del' : 'rm'} ${userDir + '/' + repoName} -Force - Recurse && git clone ${URL} ${userDir + '/' + repoName} --quiet` :
+        `${os === 'win32' ? 'del' : 'rm'} ${userDir + '/' + repoName} -Force -Recurse && git clone ${URL} ${userDir + '/' + repoName} --quiet` :
         `git clone ${URL} ${userDir + '/' + repoName} --quiet`
 
     let cloneRes = green('➡️ ') + `Cloning ${user} /${repoName}`
     let cloneCommand = await promise(gitCloneCommand, cloneRes, { shell: shell }, userDir)
     console.log(cloneCommand)
 }
-// const cloneReposCommand = async ({ user, userDir, URL, repoName }, shell, os) => {
-//     console.log({ user, userDir, URL, repoName });
-//     let gitCloneCommand = fs.existsSync(userDir)
-//         ?
-//         `${os === 'win32' ? 'del' : 'rm'} ${userDir} -Force -Recurse  && git clone ${URL} ${userDir} --quiet`
-//         :
-//         `git clone ${URL} ${userDir} --quiet`
 
-//     let cloneRes = green('➡️ ') + `Cloning ${user}/${repoName}`
-//     let cloneCommand = await promise(gitCloneCommand, cloneRes, { shell: shell }, userDir)
-//     console.log(cloneCommand)
-// }
 
 const configureOptions = async ({
     optionsObj,
@@ -354,11 +358,12 @@ const cloneRepos = async ({ optionsObj, repoInfo, shell, os, loadPrevOpts }) => 
     }
 }
 
-const commitsCommand = async ({ branchObj, os, userDir }) => {
+const commitsCommand = async ({ branchObj, os, userRepoDir }) => {
     let tty = os === 'win32' ? 'CON' : '/dev/tty';
     let commitCommandStr = 'git shortlog -sn < ' + tty
-    let commitOpts = { cwd: `${userDir}` }
+    let commitOpts = { cwd: `${userRepoDir}` }
     let commitCommand = await promise(commitCommandStr, '', commitOpts)
+
 
     let commitArr = commitCommand.split("\n").map(i => i.split("\t")).filter(i => i[0] !== '').map(i => [i[0].replace(/\s/g, ''), i[1]])
     commitArr.map(i => {
@@ -373,19 +378,21 @@ const grepCommand = async ({ userDir, repoName }) => {
     return grepCommandRes.split('\n').filter(i => i[0] === 'c').filter(i => !i.includes('//')).filter(i => i.includes('router.'));
 }
 
-const saveResults = ({ results, optionsObj }) => {
-    console.log(Object.keys(results).length, optionsObj.Repos.length);
-    if (Object.keys(results).length === optionsObj.Repos.length) {
-        if (optionsObj?.Options?.LogResults) {
-            console.dir(results, { depth: null });
-        }
-        fs.writeFileSync(`${__dirname}/results_${optionsObj.Options.Selection.toLowerCase()}.json`, JSON.stringify(results));
-        console.log(green('√ ') + `Results Saved As: ${hyperlinker(green(`results_${optionsObj.Options.Selection.toLowerCase()}.json`), __dirname + `/results_${optionsObj.Options.Selection.toLowerCase()}.json`)}`)
+const saveResults = async ({ results, optionsObj }) => {
 
+    if (optionsObj?.Options?.LogResults) {
+        // console.dir(results, { depth: null });
+        // console.log(JSON.stringify(results, null, 2));
+        util.inspect.styles.boolean = 'blue';
+        util.inspect.styles.number = 'cyanBright';
+        util.inspect.styles.string = 'green';
+        console.log(util.inspect(results, false, null, true))
     }
+    fs.writeFileSync(`${__dirname}/results_${optionsObj.Options.Selection.toLowerCase()}.json`, JSON.stringify(results));
+    console.log(green('√ ') + `Results Saved As: ${hyperlinker(green(`results_${optionsObj.Options.Selection.toLowerCase()}.json`), __dirname + `/results_${optionsObj.Options.Selection.toLowerCase()}.json`)}`)
 }
 
-const serverCommands = async ({ repoName, userDir, user, URL }, results, optionsObj, branchObj) => {
+const serverCommands = async ({ repoName, userDir, user, URL }, results, optionsObj, branchObj,) => {
     //*********************************** 
     //? GREP EXPRESS ROUTER ENDPOINTS
     //*********************************** 
@@ -394,6 +401,7 @@ const serverCommands = async ({ repoName, userDir, user, URL }, results, options
     //*********************************** 
     //? GREP BCRYPT
     //*********************************** 
+    let userBcryptEndpointNames = ['/register', '/login', '/create']
     let bcryptCommandStr = `cd ${userDir + '/' + repoName} && git grep -r -n "bcrypt" ":!*.json" ":!*.md"`
     let bcryptCommandRes = await promise(bcryptCommandStr, '')
 
@@ -406,29 +414,18 @@ const serverCommands = async ({ repoName, userDir, user, URL }, results, options
         Bcrypt: bcrypt1 && bcrypt2 ? true : false
     }
 
-    if (!results[parseUser(URL)]) {
-        results[parseUser(URL)] = {
-            Files: {}
-        }
-    }
-
-
     endpoints.forEach(async (line) => {
 
         try {
-
             // Parse Data
             let fName = line.split('/')[1].split('.')[0].toLowerCase()
-
+            let filePath = "/" + line.split("/")[0] + "/" + line.split("/")[1].split(":")[0]
             let method = (line.split('/')[1].split('.')[2]).slice(0, -2).toUpperCase()
             let path = line.split("(")[1].split(',')[0].slice(1, -1)
-            let filePath = "/" + line.split("/")[0] + "/" + line.split("/")[1].split(":")[0]
+            // Opts
             let Async = line.split("(")[1].split(',').filter(i => i.replace(/\s/g, '')).includes(' async ')
             let Validated = line.split("(")[1].split(',').length === 3 ? true : false
-            let Bcrypt = fName === obj.FileName && obj.Bcrypt && path === '/register' || path === '/login' ? true : false;
-
-            // console.log(line.split("(")[1].split(','));
-            // console.log(validated);
+            let Bcrypt = fName === obj.FileName && obj.Bcrypt && path === userBcryptEndpointNames.filter(i => path === i).join('') ? true : false;
 
             let tmpOptionsObj = { Validated, Async, Bcrypt }
 
@@ -444,6 +441,7 @@ const serverCommands = async ({ repoName, userDir, user, URL }, results, options
             let resObj = {
                 Path: path,
                 Method: method,
+
             }
             if (optionsObj.Options.ServerOptions.length > 0) {
                 optionsObj.Options.ServerOptions.forEach((i) => {
@@ -463,30 +461,30 @@ const serverCommands = async ({ repoName, userDir, user, URL }, results, options
 
             }
 
-
-            if (!results[user].Files[fName]) {
-                results[user].Files[fName] = {
-                    Endpoints: [
-
-                    ]
+            results[user].Repos.forEach(i => {
+                if (!i.Files[fName]) {
+                    i.Files[fName] = {
+                        Endpoints: []
+                    };
                 }
-            }
 
-            results[user].Files[fName].Endpoints.push(resObj)
+                i.Files[fName].Endpoints.push(resObj)
 
-            //Remove Dupes
-            let tmp = results[user].Files[fName].Endpoints
-            results[user].Files[fName].Endpoints = Array.from(new Set(tmp.map(JSON.stringify))).map((i) => JSON.parse(i));
-            let cleaned = results[user].Files[fName].Endpoints
+                //Remove Dupe Endpoints
+                let tmp = i.Files[fName].Endpoints
+                i.Files[fName].Endpoints = Array.from(new Set(tmp.map(JSON.stringify))).map((i) => JSON.parse(i));
+                let cleaned = i.Files[fName].Endpoints
 
-            // Build Final Results Obj
-            results[user].Files[fName] = { NumOfEndpoints: cleaned.length, Endpoints: cleaned }
-            results[user] = { Branches: branchObj, ...results[user] }
+                // Build Final Results Obj
+                i.Files[fName] = { NumOfEndpoints: cleaned.length, Endpoints: cleaned }
 
+
+            })
         } catch (err) {
             console.log({ err })
         }
     });
+
 }
 
 const reportBugFetch = async () => {
@@ -517,8 +515,7 @@ const menuSelectionActions = async (os, shell) => {
     const { MenuSelection } = menuSelectionRes;
 
     if (MenuSelection === 'EmptyRepos') {
-        const emptyReposCommand = `${os === 'win32' ? 'del' : 'rm'} ${__dirname}/repos/* -Force -Recurse -Exclude *gitkeep* `
-        let emptyReposFolder = await promise(emptyReposCommand, 'Cleared Repos Folder', { shell: shell })
+        let emptyReposFolder = await emptyReposCommand({ os, shell }, 'Cleared Repos Folder');
         console.log(green('√ ') + emptyReposFolder);
     }
 
@@ -539,9 +536,6 @@ const menuSelectionActions = async (os, shell) => {
         )
         main();
     }
-
-
-
     return MenuSelection
 }
 
@@ -559,26 +553,30 @@ const displayTitle = () => {
         independentGradient: false, // define if you want to recalculate the gradient for each new line
         transitionGradient: true,  // define if this is a transition between colors directly
         env: 'node'                 // define the environment CFonts is being executed in
-    });
+    }
+    );
 }
 
 //*********************************** 
 //? MAIN INITIATION
 //*********************************** 
+
 const main = async () => {
     try {
 
-        let prevOptions = {}, optionsObj = {}, os = process.platform, shell = os === 'win32' ? 'pwsh.exe' : true
+        let prevOptions = {}, optionsObj = {}
 
         //*********************************** 
         //? DISPLAY TITLE
         //*********************************** 
-        displayTitle();
 
+        displayTitle();
         //*********************************** 
         //? MENU OTHER ACTIONS
         //*********************************** 
+
         const menuChoice = await menuSelectionActions(os, shell)
+        // const menuChoice = 'Start'
 
         if (menuChoice === 'Start') {
             const configOptions = {
@@ -588,11 +586,13 @@ const main = async () => {
             //*********************************** 
             //? CHECK PREVIOUS CONFIG
             //*********************************** 
+
             let [gitHubURLs, loadPrevOpts] = await configureOptions(configOptions)
             optionsObj = gitHubURLs
             //*********************************** 
             //? SAVE CONFIG FILE
             //*********************************** 
+
             if (Object.keys(optionsObj).length !== 0) {
                 fs.writeFileSync(`${__dirname}` + "/config.json", JSON.stringify(optionsObj));
                 console.log(green('√ ') + `Config Saved As: ${hyperlinker(green('config.json'), __dirname + '/config.json')}`)
@@ -602,11 +602,13 @@ const main = async () => {
             //*********************************** 
             //? For all of the input Repos
             //*********************************** 
-            optionsObj.Repos.forEach(async ({ URL, Name, GitHubUser }) => {
+            let count = 0
+            optionsObj.Repos.forEach(async ({ URL, Name, GitHubUser }, idx) => {
                 try {
                     let
                         user = GitHubUser,
                         userDir = `${__dirname}/repos/${user}`,
+                        userRepoDir = userDir + '/' + Name,
                         repoName = Name,
                         repoInfo = {
                             user,
@@ -622,25 +624,44 @@ const main = async () => {
                             os
                         };
 
-
                     //*********************************** 
                     //? CLONE REPOS
                     //*********************************** 
+
                     await cloneRepos(cloneCommandObj)
                     //*********************************** 
                     //? If clone was successful and directories exist
                     //*********************************** 
+
                     if (fs.existsSync(`${userDir}`)) {
                         //*********************************** 
                         //? GIT BRANCH COMMITS
                         //*********************************** 
+
                         let branchObj = {}
-                        await commitsCommand({ branchObj, os, userDir })
+                        await commitsCommand({ branchObj, os, userRepoDir })
+                        //*********************************** 
+                        //? TEMPLATE RESULTS OBJ
+                        //*********************************** 
+
+                        if (!results[user]) {
+                            results[user] = { Repos: [] }
+                        }
+                        if (results[user].Repos) {
+                            results[user].Repos.push({
+                                Name: Name,
+                                Branches: branchObj,
+                                Files: {}
+                            })
+                        }
+
                         if (optionsObj.Options.Selection === 'Server') {
                             //*********************************** 
                             //? RUN SERVER COMMANDS
                             //*********************************** 
+
                             await serverCommands(repoInfo, results, optionsObj, branchObj);
+
                         } else {
                             //*********************************** 
                             // TODO RUN CLIENT COMMANDS
@@ -648,14 +669,22 @@ const main = async () => {
                             // await clientCommands(repoInfo, results, optionsObj, branchObj);
                         }
                     };
+
                     //*********************************** 
                     //? SAVE RESULTS FILE
                     //*********************************** 
-                    console.log({ results });
-                    // saveResults({ results, optionsObj });
+
+                    if (count === optionsObj.Repos.length - 1) {
+                        await saveResults({ results, optionsObj });
+                    }
+
+                    count++
+
                 } catch (err) {
                     console.log({ err });
                 };
+
+
             });
         }
     } catch (err) {
