@@ -1,8 +1,7 @@
 # Pro_Grader
 
-<!-- ![Image of Rsrc](https://i.ibb.co/kxbDf0k/Sys-Rsrc-Demo.png) -->
 <p align='center'>
-<img width="auto" height="auto" src="https://i.ibb.co/bm2Ptpk/black.png" style="border-radius:15px;border:1px solid white;margin:0em;">
+<img width="auto" height="auto" src="https://i.ibb.co/TgRBN6Z/black.png" style="border-radius:15px;border:1px solid white;margin:0em;">
 </p>
 
 <div align=center>
@@ -11,6 +10,7 @@
 <img src='https://img.shields.io/npm/l/pro_grader.svg?style=flat'>
 </div>
 
+</br>
 A grading tool to batch clone git repos, and log express endpoints.
 
 ## Requirements
