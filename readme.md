@@ -21,7 +21,7 @@ A grading tool to batch clone git repos, and log express endpoints.
 ## Install
 
 ```bash
-$ npm i -g pro_grader
+npm i -g pro_grader
 ```
 
 ## CLI
