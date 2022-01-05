@@ -311,7 +311,6 @@ const cloneReposCommand = async ({ user, userDir, URL, repoName }, shell, os) =>
     console.log(cloneCommand)
 }
 
-
 const configureOptions = async ({
     optionsObj,
     prevOptions,
@@ -556,6 +555,13 @@ const displayTitle = () => {
     );
 }
 
+
+//*********************************** 
+//? DISPLAY TITLE
+//*********************************** 
+
+displayTitle();
+
 //*********************************** 
 //? MAIN INITIATION
 //*********************************** 
@@ -565,11 +571,6 @@ const main = async () => {
 
         let prevOptions = {}, optionsObj = {}
 
-        //*********************************** 
-        //? DISPLAY TITLE
-        //*********************************** 
-
-        displayTitle();
         //*********************************** 
         //? MENU OTHER ACTIONS
         //*********************************** 
