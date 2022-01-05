@@ -26,6 +26,10 @@ dotenvpkg.config();
 let os = process.platform
 let shell = os === 'win32' ? 'pwsh.exe' : true
 
+
+const alpha = Array.from(Array(26)).map((e, i) => i + 65);
+const alphabet = alpha.map((x) => String.fromCharCode(x));
+
 /*
 * Easy
     TODO: - //! BUG: If additional folders in /repos, results logged multiple times...
@@ -43,6 +47,7 @@ const commandPrompts = {
         message: 'Choose an option',
         choices: [
             { title: '🔍 Start', description: 'Start Pro_Grader', value: 'Start' },
+            { title: '🎲 Group Randomizer', description: 'Randomize Student Groups', value: 'Random' },
             { title: 'ℹ️ About', description: 'About Pro_Grader', value: 'About' },
             { title: '🪲 Report A Bug', description: 'Send me a message about a bug/issue', value: 'Report' },
             { title: '❌ Empty Repos Folder', description: 'Clear out the repo files stored in app dir', value: 'EmptyRepos' },
@@ -63,6 +68,23 @@ const commandPrompts = {
         }),
         initial: 0,
     }],
+    inputRandomNames: [
+        {
+            type: 'number',
+            name: 'GroupCount',
+            message: 'Groups of?',
+            validate: value => value.length === 0 ? `Please provide a number!` : true,
+            min: 1
+        },
+        {
+            type: 'list',
+            name: 'SNames',
+            message: `Enter Student Names Separated By Commas.`,
+            initial: '',
+            separator: ',',
+            validate: value => value.length === 0 ? `Names cannot be empty!` : true
+        }
+    ],
     reportBug: [
 
         {
@@ -150,7 +172,6 @@ const commandPrompts = {
         separator: ',',
         validate: value => value.length === 0 ? `URLs cannot be blank!` : true
     },],
-
     gitHubCloneRepoQuestion: [{
         type: 'toggle',
         name: 'Reclone',
@@ -160,7 +181,6 @@ const commandPrompts = {
         inactive: 'No',
         hint: 'hidy hooo'
     }],
-
     optionsCorruptQuestion: [{
         type: 'message',
         name: 'OptionsCorrupt',
@@ -171,7 +191,7 @@ const commandPrompts = {
     }]
 }
 
-const { loadConfig, clientOrServerQuestion, logResultsQuestion, gitHubPrevURLQuestion, gitHubCloneRepoQuestion, gitHubURLsQuestion, optionsCorruptQuestion, reportBug, mainMenu } = commandPrompts
+const { loadConfig, clientOrServerQuestion, logResultsQuestion, gitHubPrevURLQuestion, gitHubCloneRepoQuestion, gitHubURLsQuestion, optionsCorruptQuestion, reportBug, mainMenu, inputRandomNames } = commandPrompts
 
 const parseName = name => {
     return name.split('/')[4].split('.')[0]
@@ -247,7 +267,7 @@ const loadRepos = async (optObj, loadedPrevOpt) => {
 };
 
 const onCancel = () => {
-    console.log(green('Exiting...'))
+    console.log(red('Exiting...'))
     process.exit();
 }
 const prevOptionsCheck = async () => {
@@ -508,6 +528,49 @@ const reportBugFetch = async () => {
     })
 }
 
+const randomizer = (nameArr, gCount) => {
+
+    let names2 = [...nameArr]
+    let groups = {};
+    let testarr = []
+    let cleaned = []
+
+    let groupNum = gCount
+    const addRemoveFuncRandomNum = () => {
+        let randName = nameArr[Math.floor(Math.random() * nameArr.length)]
+        if (nameArr.indexOf(randName) !== -1) {
+            nameArr.splice(nameArr.indexOf(randName), 1)
+        }
+        return randName
+    }
+
+    for (let i = 0; i < names2.length / groupNum; i++) {
+        testarr.push([])
+    }
+
+    for (let a of names2) {
+        for (let x = 0; x < testarr.length; x++) {
+            let tmp = addRemoveFuncRandomNum()
+            if (testarr[x]?.length <= groupNum) {
+                testarr[x] = [...testarr[x], tmp]
+            } else {
+                break
+            }
+        }
+    }
+    let newArr;
+    testarr.forEach(i => {
+        newArr = i.filter(i => i !== undefined)
+        cleaned.push(newArr)
+    })
+    for (let c in cleaned) {
+        groups[`Group ${alphabet[c]}`] = cleaned[c]
+    }
+    console.dir(groups)
+}
+
+
+
 const menuSelectionActions = async (os, shell) => {
     let menuSelectionRes = await (prompts(mainMenu, { onCancel }))
 
@@ -535,6 +598,17 @@ const menuSelectionActions = async (os, shell) => {
         )
         main();
     }
+
+    if (MenuSelection === 'Random') {
+
+        let rRes = await prompts(inputRandomNames)
+        let groupCount = rRes.GroupCount
+        let names = rRes.SNames
+        randomizer(names, groupCount)
+        main();
+    }
+
+
     return MenuSelection
 }
 
