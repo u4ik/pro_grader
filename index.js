@@ -29,7 +29,6 @@ let shell = os === 'win32' ? 'pwsh.exe' : true
 /*
 * Easy
     TODO: - //! BUG: If additional folders in /repos, results logged multiple times...
-    TODO: - //! BUG: Loadprev->Yes->UseCurRepos->false === NO CLONING HAPPENING.
     TODO: - Add option to randomize student groups
 * Med
     TODO: - Add Additional server logic - check for  JWT_SECRET, admin, dotenv
